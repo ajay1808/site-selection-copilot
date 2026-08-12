@@ -1,0 +1,192 @@
+[
+  {
+    "address": "1100 Congress Ave, Austin, TX 78701 (Downtown/Capitol)",
+    "lat": 30.2747,
+    "lon": -97.7404,
+    "access_score": 58.7,
+    "isochrone_status": "ok",
+    "median_household_income": 92941.0,
+    "vs_city_median_income_pct": 1.6,
+    "median_age": 34.6,
+    "population_density_per_sqmi": 1943.5,
+    "census_status": "ok",
+    "competitors_in_catchment": 655,
+    "nearest_three_miles": [
+      0.18,
+      0.22,
+      0.23
+    ],
+    "competitor_status": "degraded"
+  },
+  {
+    "address": "900 E 11th St, Austin, TX 78702 (East Austin)",
+    "lat": 30.2701,
+    "lon": -97.7313,
+    "access_score": 82.9,
+    "isochrone_status": "ok",
+    "median_household_income": 73359.0,
+    "vs_city_median_income_pct": -19.8,
+    "median_age": 34.2,
+    "population_density_per_sqmi": 6042.1,
+    "census_status": "ok",
+    "competitors_in_catchment": 760,
+    "nearest_three_miles": [
+      0.0,
+      0.2,
+      0.25
+    ],
+    "competitor_status": "degraded"
+  },
+  {
+    "address": "3110 Esperanza Crossing, Austin, TX 78758 (The Domain)",
+    "lat": 30.4013,
+    "lon": -97.7226,
+    "access_score": 66.9,
+    "isochrone_status": "ok",
+    "median_household_income": 89066.0,
+    "vs_city_median_income_pct": -2.6,
+    "median_age": 32.0,
+    "population_density_per_sqmi": 3427.2,
+    "census_status": "ok",
+    "competitors_in_catchment": 412,
+    "nearest_three_miles": [
+      0.01,
+      0.02,
+      0.02
+    ],
+    "competitor_status": "degraded"
+  },
+  {
+    "address": "1600 S Congress Ave, Austin, TX 78704 (South Congress)",
+    "lat": 30.25,
+    "lon": -97.75,
+    "access_score": 49.4,
+    "isochrone_status": "ok",
+    "median_household_income": 120890.0,
+    "vs_city_median_income_pct": 32.2,
+    "median_age": 37.8,
+    "population_density_per_sqmi": 6070.0,
+    "census_status": "ok",
+    "competitors_in_catchment": 542,
+    "nearest_three_miles": [
+      0.0,
+      0.02,
+      0.06
+    ],
+    "competitor_status": "degraded"
+  },
+  {
+    "address": "3300 Bee Cave Rd, Austin, TX 78746 (West Lake Hills)",
+    "lat": 30.2903,
+    "lon": -97.8113,
+    "access_score": 22.3,
+    "isochrone_status": "ok",
+    "median_household_income": 194094.0,
+    "vs_city_median_income_pct": 112.2,
+    "median_age": 51.3,
+    "population_density_per_sqmi": 785.2,
+    "census_status": "ok",
+    "competitors_in_catchment": 48,
+    "nearest_three_miles": [
+      0.71,
+      0.71,
+      0.81
+    ],
+    "competitor_status": "degraded"
+  },
+  {
+    "address": "1911 Aldrich St, Austin, TX 78723 (Mueller)",
+    "lat": 30.2989,
+    "lon": -97.7047,
+    "access_score": 69.1,
+    "isochrone_status": "ok",
+    "median_household_income": 119638.0,
+    "vs_city_median_income_pct": 30.8,
+    "median_age": 33.4,
+    "population_density_per_sqmi": 7516.4,
+    "census_status": "ok",
+    "competitors_in_catchment": 592,
+    "nearest_three_miles": [
+      0.02,
+      0.03,
+      0.03
+    ],
+    "competitor_status": "degraded"
+  },
+  {
+    "address": "2438 E Riverside Dr, Austin, TX 78741 (SE Riverside)",
+    "lat": 30.2405,
+    "lon": -97.728,
+    "access_score": 53.6,
+    "isochrone_status": "ok",
+    "median_household_income": 39416.0,
+    "vs_city_median_income_pct": -56.9,
+    "median_age": 29.0,
+    "population_density_per_sqmi": 14693.3,
+    "census_status": "ok",
+    "competitors_in_catchment": 470,
+    "nearest_three_miles": [
+      0.04,
+      0.09,
+      0.09
+    ],
+    "competitor_status": "degraded"
+  },
+  {
+    "address": "1000 E Rundberg Ln, Austin, TX 78753 (North/Rundberg)",
+    "lat": 30.355,
+    "lon": -97.693,
+    "access_score": 59.2,
+    "isochrone_status": "ok",
+    "median_household_income": 38047.0,
+    "vs_city_median_income_pct": -58.4,
+    "median_age": 26.5,
+    "population_density_per_sqmi": 6132.5,
+    "census_status": "ok",
+    "competitors_in_catchment": 324,
+    "nearest_three_miles": [
+      0.22,
+      0.33,
+      0.33
+    ],
+    "competitor_status": "degraded"
+  },
+  {
+    "address": "2400 Guadalupe St, Austin, TX 78705 (UT Campus)",
+    "lat": 30.2903,
+    "lon": -97.7431,
+    "access_score": 53.0,
+    "isochrone_status": "ok",
+    "median_household_income": 15826.0,
+    "vs_city_median_income_pct": -82.7,
+    "median_age": 21.4,
+    "population_density_per_sqmi": 32271.6,
+    "census_status": "ok",
+    "competitors_in_catchment": 530,
+    "nearest_three_miles": [
+      0.07,
+      0.08,
+      0.09
+    ],
+    "competitor_status": "degraded"
+  },
+  {
+    "address": "5501 W Slaughter Ln, Austin, TX 78749 (Circle C, SW)",
+    "lat": 30.2036,
+    "lon": -97.857,
+    "access_score": 65.4,
+    "isochrone_status": "ok",
+    "median_household_income": 93750.0,
+    "vs_city_median_income_pct": 2.5,
+    "median_age": 41.9,
+    "population_density_per_sqmi": 5388.0,
+    "census_status": "ok",
+    "competitors_in_catchment": 169,
+    "nearest_three_miles": [
+      0.46,
+      0.47,
+      0.5
+    ],
+    "competitor_status": "degraded"
+  }
+]

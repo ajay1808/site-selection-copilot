@@ -1,0 +1,20 @@
+services:
+  ors-app:
+    image: openrouteservice/openrouteservice:latest
+    container_name: site-selection-ors
+    ports:
+      - "8080:8082"
+    volumes:
+      - ./ors-docker/graphs:/home/ors/graphs
+      - ./ors-docker/elevation_cache:/home/ors/elevation_cache
+      - ./ors-docker/files:/home/ors/files
+      - ./ors-docker/logs:/home/ors/logs
+      - ./ors-docker/config/ors-config.yml:/home/ors/config/ors-config.yml
+    environment:
+      - REBUILD_GRAPHS=False
+      - ORS_CONFIG_LOCATION=/home/ors/config/ors-config.yml
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8082/ors/v2/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 30

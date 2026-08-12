@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+ors-docker/files/*.pbf
+ors-docker/graphs/
+ors-docker/elevation_cache/
+ors-docker/logs/
+chroma_data/
+traces.jsonl
+*.log

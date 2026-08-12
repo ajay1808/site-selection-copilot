@@ -1,0 +1,880 @@
+[
+  {
+    "case_id": "baseline_spec_example",
+    "query_text": "Best spot for a fast-casual restaurant near East Austin, budget-conscious, drive-thru not required.",
+    "clarification_needed": null,
+    "report": {
+      "query": {
+        "business_type": "fast-casual restaurant",
+        "candidate_region": "East Austin",
+        "priority_weights": {
+          "access": 0.25,
+          "demographics": 0.3,
+          "competition": 0.2,
+          "labor": 0.15,
+          "zoning": 0.1
+        },
+        "hard_constraints": [
+          "budget-conscious",
+          "drive-thru not required"
+        ]
+      },
+      "top_candidates": [
+        {
+          "candidate": {
+            "address": "900 E 11th St, Austin, TX 78702",
+            "lat": 30.2701,
+            "lon": -97.7313
+          },
+          "rank": 1,
+          "rationale": "This site delivers the strongest population-weighted access score at 82.9, indicating excellent drive-time reach within the 10-minute catchment. The demographics show a population density of 6042.1 per square mile and a median age of 34.2, appealing to the fast-casual target market. While the median household income of 73359.0 is below the city median (vs_city_median_income_pct of -19.8), this aligns well with the budget-conscious constraint. The catchment contains 760 same-category competitors, but zoning risk is low with a CS base district designation. Labor conditions are favorable with a median wage of 29310.0 and unemployment at 4.0 percent.",
+          "data_gaps": []
+        },
+        {
+          "candidate": {
+            "address": "1911 Aldrich St, Austin, TX 78723",
+            "lat": 30.2989,
+            "lon": -97.7047
+          },
+          "rank": 2,
+          "rationale": "This location offers the highest population density at 7516.4 per square mile and strong household income of 119638.0 (30.8 percent above city median), paired with a young median age of 33.4. The access score of 69.1 is solid, though lower than the top candidate. Competition is moderate with 592 same-category establishments in the catchment, and the nearest competitors are 0.02, 0.03, and 0.03 miles away. Labor metrics match the market with a median wage of 29310.0 and 4.0 percent unemployment. However, zoning presents uncertainty: the site is in a Planned Unit Development (PUD) district requiring case-by-case ordinance review before restaurant use can be confirmed.",
+          "data_gaps": [
+            "Zoning risk could not be definitively determined for this address; the PUD designation requires pulling the specific ordinance to verify restaurant permissions before committing."
+          ]
+        },
+        {
+          "candidate": {
+            "address": "1600 S Congress Ave, Austin, TX 78704",
+            "lat": 30.25,
+            "lon": -97.75
+          },
+          "rank": 3,
+          "rationale": "This South Congress site has affluent demographics with a median household income of 120890.0 (32.2 percent above city median) and population density of 6070.0 per square mile, but the access score of 49.4 is the lowest of the three candidates, limiting drive-time reach. The median age of 37.8 skews slightly older. Competition is intense with 542 same-category restaurants in the catchment and the nearest competitors at 0.0, 0.02, and 0.06 miles, suggesting saturation. Zoning is low-risk with a CS base district, and labor conditions mirror the market at 29310.0 median wage and 4.0 percent unemployment. The higher income may not align as well with the budget-conscious constraint.",
+          "data_gaps": []
+        }
+      ],
+      "top_tradeoff": "The top-ranked site at 900 E 11th St offers superior accessibility (82.9 vs. 69.1) and better alignment with budget-conscious customers, while the second-ranked site at 1911 Aldrich St provides higher income demographics and population density but requires zoning verification due to its PUD designation.",
+      "agents_called": [
+        "get_isochrone",
+        "get_census_profile",
+        "get_poi_density",
+        "get_labor_profile",
+        "get_zoning_risk"
+      ],
+      "agents_skipped": {}
+    }
+  },
+  {
+    "case_id": "coffee_shop_access_weighted",
+    "query_text": "Where should a coffee shop open in downtown Austin? High foot traffic matters most.",
+    "clarification_needed": null,
+    "report": {
+      "query": {
+        "business_type": "coffee shop",
+        "candidate_region": "downtown Austin",
+        "priority_weights": {
+          "access": 0.5,
+          "demographics": 0.15,
+          "competition": 0.15,
+          "labor": 0.1,
+          "zoning": 0.1
+        },
+        "hard_constraints": []
+      },
+      "top_candidates": [
+        {
+          "candidate": {
+            "address": "1100 Congress Ave, Austin, TX 78701",
+            "lat": 30.2747,
+            "lon": -97.7404
+          },
+          "rank": 1,
+          "rationale": "This Congress Avenue location earns the top ranking primarily on its exceptional access score of 58.7, the highest among all candidates and heavily weighted in the analysis. The site benefits from a healthy median household income of 92941.0 and a population density of 1943.5 per square mile, supporting strong customer spending potential. While the catchment contains 150 competing coffee shops, the nearest competitor is 0.2 miles away, providing some breathing room. Labor conditions are favorable with a median wage of 29310.0 and unemployment at 4.0 percent. Zoning risk is low, ensuring regulatory certainty for this coffee shop concept.",
+          "data_gaps": [
+            "saturation_score could not be determined for this address; verify competitive intensity before committing"
+          ]
+        },
+        {
+          "candidate": {
+            "address": "1600 S Congress Ave, Austin, TX 78704",
+            "lat": 30.25,
+            "lon": -97.75
+          },
+          "rank": 2,
+          "rationale": "This South Congress location ranks second with a strong demographic profile featuring the highest median household income at 120890.0 and exceptional population density of 6070.0 per square mile, ideal for a high-traffic coffee shop. The access score of 49.4 is solid though lower than the top candidate. Competition is notably lighter with only 111 coffee shops in the catchment and the nearest competitor just 0.08 miles away, suggesting a saturated immediate area but lower overall market density. Labor market conditions mirror other Austin sites with a median wage of 29310.0 and 4.0 percent unemployment. Zoning presents low risk for coffee shop operations.",
+          "data_gaps": [
+            "saturation_score could not be determined for this address; verify competitive intensity before committing"
+          ]
+        },
+        {
+          "candidate": {
+            "address": "2400 Guadalupe St, Austin, TX 78705",
+            "lat": 30.2903,
+            "lon": -97.7431
+          },
+          "rank": 3,
+          "rationale": "This Guadalupe Street location near the University of Texas ranks third, with an access score of 53.0 and the highest population density at 32271.6 per square mile, reflecting the dense student population. However, the median household income of 15826.0 is extremely low, typical of student neighborhoods, which may limit per-transaction spending despite high foot traffic. The catchment contains 142 competing coffee shops with the nearest 0.13 miles away, indicating intense competition. Labor conditions are consistent with other Austin sites at a median wage of 29310.0 and 4.0 percent unemployment. Zoning risk remains low for this coffee shop use.",
+          "data_gaps": [
+            "saturation_score could not be determined for this address; verify competitive intensity before committing"
+          ]
+        }
+      ],
+      "top_tradeoff": "The top-ranked Congress Avenue site offers superior accessibility and moderate income demographics, while the second-ranked South Congress location sacrifices some access for significantly wealthier customers and higher population density.",
+      "agents_called": [
+        "get_isochrone",
+        "get_census_profile",
+        "get_poi_density",
+        "get_labor_profile",
+        "get_zoning_risk"
+      ],
+      "agents_skipped": {}
+    }
+  },
+  {
+    "case_id": "gym_low_competition",
+    "query_text": "Looking for a gym location in North Austin. I want low competition from other gyms.",
+    "clarification_needed": null,
+    "report": {
+      "query": {
+        "business_type": "gym",
+        "candidate_region": "North Austin",
+        "priority_weights": {
+          "access": 0.2,
+          "demographics": 0.2,
+          "competition": 0.4,
+          "labor": 0.1,
+          "zoning": 0.1
+        },
+        "hard_constraints": []
+      },
+      "top_candidates": [
+        {
+          "candidate": {
+            "address": "7301 Burnet Rd, Austin, TX 78757",
+            "lat": 30.3483,
+            "lon": -97.7357
+          },
+          "rank": 1,
+          "rationale": "This location scores highest overall due to its strong demographic profile and favorable zoning. The catchment area has a median household income of 103268.0, which is 12.9 percent above the city median, and a population density of 6350.7 per square mile, indicating a dense, affluent market ideal for gym membership. The site carries low zoning risk under base district CS. The population-weighted access score is 64.6. While competition is present with 29 gyms in the catchment and the nearest competitor only 0.66 miles away, the strong income demographics and regulatory certainty make this the top choice for a gym seeking an established, high-spending customer base.",
+          "data_gaps": []
+        },
+        {
+          "candidate": {
+            "address": "3110 Esperanza Crossing, Austin, TX 78758",
+            "lat": 30.4013,
+            "lon": -97.7226
+          },
+          "rank": 2,
+          "rationale": "This site ranks second with the highest population-weighted access score of 66.9 and moderately strong demographics, including a median household income of 89066.0 and a median age of 32.0. The catchment has a population density of 3427.2 per square mile. Competition is moderate with 24 gyms in the area and the nearest competitor 0.26 miles away. However, the location carries high zoning risk under base district MI, which could complicate permitting and delay opening. The unemployment rate in the county is 4.0 percent, and labor market conditions mirror the other candidates with a median wage of 29310.0 for relevant occupations.",
+          "data_gaps": []
+        },
+        {
+          "candidate": {
+            "address": "1000 E Rundberg Ln, Austin, TX 78753",
+            "lat": 30.355,
+            "lon": -97.693
+          },
+          "rank": 3,
+          "rationale": "This location ranks third primarily due to weak income demographics that may limit membership pricing power and retention. The median household income is 38047.0, which is 58.4 percent below the city median, despite having the highest population density of 6132.5 per square mile and a young median age of 26.5. The population-weighted access score is 59.2, the lowest of the three candidates. Competition is similar to the second-ranked site with 24 gyms in the catchment, but competitors are farther away at 1.35 miles for the nearest. Zoning risk is high under base district SF. While the dense, young population could support budget fitness models, the income profile is a significant constraint for premium gym concepts.",
+          "data_gaps": []
+        }
+      ],
+      "top_tradeoff": "The top-ranked site at 7301 Burnet Rd offers superior income demographics and low zoning risk but faces the most intense nearby competition, whereas the second-ranked site at 3110 Esperanza Crossing has better access and less immediate competition but carries high zoning risk that could delay project timelines.",
+      "agents_called": [
+        "get_isochrone",
+        "get_census_profile",
+        "get_poi_density",
+        "get_labor_profile",
+        "get_zoning_risk"
+      ],
+      "agents_skipped": {}
+    }
+  },
+  {
+    "case_id": "grocery_demographics_weighted",
+    "query_text": "Grocery store site in Southwest Austin -- demographics (family income) matter most.",
+    "clarification_needed": null,
+    "report": {
+      "query": {
+        "business_type": "grocery store",
+        "candidate_region": "Southwest Austin",
+        "priority_weights": {
+          "demographics": 0.5,
+          "access": 0.2,
+          "competition": 0.15,
+          "labor": 0.1,
+          "zoning": 0.05
+        },
+        "hard_constraints": []
+      },
+      "top_candidates": [
+        {
+          "candidate": {
+            "address": "4301 W William Cannon Dr, Austin, TX 78749",
+            "lat": 30.222,
+            "lon": -97.8387
+          },
+          "rank": 1,
+          "rationale": "This site excels on the highest-weighted demographic criterion, with a median household income of 149806.0 dollars\u201463.8 percent above the city median\u2014and a mature customer base with median age 49.5. The catchment area delivers a population-weighted access score of 94.4, the strongest accessibility among all candidates. Labor conditions are stable with an unemployment rate of 4.0 percent and median wages at 29310.0 dollars. The site is zoned as a Planned Unit Development, which requires pulling the specific ordinance to confirm grocery retail is permitted, but this represents manageable due diligence rather than a fundamental barrier.",
+          "data_gaps": [
+            "Competition data unavailable; same-category count and saturation score could not be determined for this address."
+          ]
+        },
+        {
+          "candidate": {
+            "address": "5501 W Slaughter Ln, Austin, TX 78749",
+            "lat": 30.2036,
+            "lon": -97.857
+          },
+          "rank": 2,
+          "rationale": "This location offers solid demographics with a median household income of 93750.0 dollars (2.5 percent above city median) and median age 41.9, serving a denser neighborhood at 5388.0 people per square mile. The population-weighted access score of 65.4 indicates good but not exceptional reachability. Labor market conditions mirror the top candidate with 4.0 percent unemployment and median wages of 29310.0 dollars. The primary concern is that zoning risk level is unknown, requiring verification with the city before lease commitment.",
+          "data_gaps": [
+            "Zoning risk could not be determined for this address; verify with the city before committing.",
+            "Competition data unavailable; same-category count and saturation score could not be determined for this address."
+          ]
+        },
+        {
+          "candidate": {
+            "address": "3300 Bee Cave Rd, Austin, TX 78746",
+            "lat": 30.2903,
+            "lon": -97.8113
+          },
+          "rank": 3,
+          "rationale": "This site boasts the highest median household income at 194094.0 dollars (112.2 percent above city median) and the oldest median age at 51.3, suggesting affluent, established residents. However, the population density is extremely low at 785.2 people per square mile, and the population-weighted access score of 22.3 is the weakest of all candidates, indicating limited catchment reach. Labor conditions are consistent with other sites at 4.0 percent unemployment and 29310.0 median wage. The very low density and poor accessibility substantially offset the income advantage for a grocery format that depends on volume.",
+          "data_gaps": [
+            "Zoning data not available; no coverage for this address.",
+            "Competition data unavailable; same-category count and saturation score could not be determined for this address."
+          ]
+        }
+      ],
+      "top_tradeoff": "The #1 site at W William Cannon Dr offers superior accessibility (94.4 vs 65.4 access score) and higher income demographics (63.8% vs 2.5% above city median), while the #2 site at W Slaughter Ln provides significantly higher population density (5388.0 vs 3573.2 per square mile) for greater customer volume potential.",
+      "agents_called": [
+        "get_isochrone",
+        "get_census_profile",
+        "get_poi_density",
+        "get_labor_profile",
+        "get_zoning_risk"
+      ],
+      "agents_skipped": {}
+    }
+  },
+  {
+    "case_id": "unstaffed_kiosk_skip_labor",
+    "query_text": "We're opening an unstaffed vending-machine kiosk business in Austin.",
+    "clarification_needed": null,
+    "report": {
+      "query": {
+        "business_type": "unstaffed vending-machine kiosk",
+        "candidate_region": "Austin",
+        "priority_weights": {
+          "access": 0.3,
+          "demographics": 0.35,
+          "competition": 0.15,
+          "labor": 0.05,
+          "zoning": 0.15
+        },
+        "hard_constraints": []
+      },
+      "top_candidates": [
+        {
+          "candidate": {
+            "address": "1911 Aldrich St, Austin, TX 78723",
+            "lat": 30.2989,
+            "lon": -97.7047
+          },
+          "rank": 1,
+          "rationale": "This site excels on the highest-weighted criteria for an unstaffed vending kiosk. Demographics are outstanding: median household income of 119638.0 dollars is 30.8 percent above the city median, and the catchment has the highest population density at 7516.4 people per square mile, providing a large pool of potential customers. Access is also strong with a population-weighted access score of 69.1, the highest among all candidates. The combination of affluent, dense population and excellent accessibility makes this location highly attractive for impulse purchases from a vending machine. Zoning presents some uncertainty as the site is in a Planned Unit Development district, requiring review of the specific PUD ordinance to confirm vending-machine permissions.",
+          "data_gaps": [
+            "Competition data could not be determined for this address; verify competitor density before committing.",
+            "Zoning risk is unknown due to PUD designation; the specific PUD ordinance must be reviewed to confirm vending-machine kiosks are permitted."
+          ]
+        },
+        {
+          "candidate": {
+            "address": "3110 Esperanza Crossing, Austin, TX 78758",
+            "lat": 30.4013,
+            "lon": -97.7226
+          },
+          "rank": 2,
+          "rationale": "This location offers solid demographics with median household income of 89066.0 dollars and a population density of 3427.2 people per square mile, providing a reasonable customer base. The population-weighted access score of 66.9 indicates good accessibility for drive-by traffic. The median age of 32.0 years suggests a younger demographic that may be more receptive to vending-machine purchases. However, this site carries high zoning risk in an MI (Mixed Industrial) base district, which may require special permits or conditional use approval for retail vending operations. The lack of competition data also creates uncertainty about market saturation.",
+          "data_gaps": [
+            "Competition data could not be determined for this address; verify competitor density before committing.",
+            "Zoning risk is high; verify with the city that vending-machine kiosks are permitted in MI district before committing."
+          ]
+        },
+        {
+          "candidate": {
+            "address": "1100 Congress Ave, Austin, TX 78701",
+            "lat": 30.2747,
+            "lon": -97.7404
+          },
+          "rank": 3,
+          "rationale": "This downtown location has favorable zoning with low risk in a CS (Commercial Services) district, making permitting straightforward. Demographics show the highest median household income at 92941.0 dollars, which is 1.6 percent above the city median, indicating an affluent customer base. However, the site is weakest on access with a population-weighted access score of only 58.7, the lowest among candidates. The population density of 1943.5 people per square mile is also the lowest, suggesting fewer potential customers within the catchment area. For an unstaffed vending kiosk that relies on foot traffic and impulse purchases, the lower density and accessibility are significant drawbacks despite the favorable income levels.",
+          "data_gaps": [
+            "Competition data could not be determined for this address; verify competitor density before committing."
+          ]
+        }
+      ],
+      "top_tradeoff": "The top-ranked Aldrich St location offers superior demographics with 119638.0 dollar median income and 7516.4 population density plus the best access score of 69.1, but carries zoning uncertainty in a PUD district, whereas the second-ranked Esperanza Crossing has lower income at 89066.0 dollars and half the population density at 3427.2 but faces high zoning risk in an industrial district.",
+      "agents_called": [
+        "get_isochrone",
+        "get_census_profile",
+        "get_poi_density",
+        "get_zoning_risk"
+      ],
+      "agents_skipped": {
+        "get_labor_profile": "Business is an unstaffed vending-machine kiosk with minimal labor requirements, as indicated by the very low labor priority weight (0.05) and the fully automated nature of the concept."
+      }
+    }
+  },
+  {
+    "case_id": "bar_zoning_weighted",
+    "query_text": "Bar and nightlife venue near East 6th Street -- zoning risk is my biggest concern.",
+    "clarification_needed": null,
+    "report": {
+      "query": {
+        "business_type": "Bar and nightlife venue",
+        "candidate_region": "East 6th Street",
+        "priority_weights": {
+          "access": 0.15,
+          "demographics": 0.15,
+          "competition": 0.1,
+          "labor": 0.1,
+          "zoning": 0.5
+        },
+        "hard_constraints": []
+      },
+      "top_candidates": [
+        {
+          "candidate": {
+            "address": "900 E 11th St, Austin, TX 78702",
+            "lat": 30.2701,
+            "lon": -97.7313
+          },
+          "rank": 1,
+          "rationale": "This site scores highest due to its low zoning risk and strong accessibility. The zoning citation confirms base district CS with low risk level, which is critical given the 0.5 weight on zoning. The population-weighted access score of 82.9 is the strongest among all candidates, indicating excellent catchment reach. The population density of 6042.1 per square mile supports high foot traffic potential for a nightlife venue. Labor market conditions are favorable with a median wage of 29310.0 and unemployment at 4.0 percent. The median household income of 73359.0 is below the city median but the high density compensates for this in a bar context.",
+          "data_gaps": [
+            "Competition data could not be determined for this address; verify saturation and nearby bars before committing"
+          ]
+        },
+        {
+          "candidate": {
+            "address": "1600 S Congress Ave, Austin, TX 78704",
+            "lat": 30.25,
+            "lon": -97.75
+          },
+          "rank": 2,
+          "rationale": "This South Congress location offers the highest income demographics with a median household income of 120890.0, representing a premium customer base. The population density of 6070.0 per square mile is comparable to the top candidate and supports strong walk-in traffic. Zoning risk is low with the same CS base district citation. However, the population-weighted access score of 49.4 is significantly lower than the top candidate, which may limit catchment reach. Labor conditions mirror other Austin sites with a median wage of 29310.0 and 4.0 percent unemployment. The median age of 37.8 skews slightly older than typical nightlife demographics.",
+          "data_gaps": [
+            "Competition data could not be determined for this address; verify saturation and nearby bars before committing"
+          ]
+        },
+        {
+          "candidate": {
+            "address": "1100 Congress Ave, Austin, TX 78701",
+            "lat": 30.2747,
+            "lon": -97.7404
+          },
+          "rank": 3,
+          "rationale": "This downtown location has low zoning risk with the same CS base district designation as other candidates. The median household income of 92941.0 is strong and above the city median. However, the population density of 1943.5 per square mile is substantially lower than the other two candidates, which may limit organic foot traffic for a bar. The population-weighted access score of 58.7 falls between the other candidates but is closer to the lower end. Labor market conditions are identical to other sites with a median wage of 29310.0 and unemployment of 4.0 percent. The lower density is a significant disadvantage for nightlife operations.",
+          "data_gaps": [
+            "Competition data could not be determined for this address; verify saturation and nearby bars before committing"
+          ]
+        }
+      ],
+      "top_tradeoff": "The top candidate at 900 E 11th St offers superior accessibility with a score of 82.9 and higher population density of 6042.1 per square mile, while the second-ranked 1600 S Congress Ave location provides a wealthier customer base with median household income of 120890.0 but weaker access at 49.4.",
+      "agents_called": [
+        "get_isochrone",
+        "get_census_profile",
+        "get_poi_density",
+        "get_labor_profile",
+        "get_zoning_risk"
+      ],
+      "agents_skipped": {}
+    }
+  },
+  {
+    "case_id": "pharmacy_north_austin",
+    "query_text": "Pharmacy location in North Austin.",
+    "clarification_needed": null,
+    "report": {
+      "query": {
+        "business_type": "pharmacy",
+        "candidate_region": "North Austin",
+        "priority_weights": {
+          "access": 0.25,
+          "demographics": 0.3,
+          "competition": 0.2,
+          "labor": 0.15,
+          "zoning": 0.1
+        },
+        "hard_constraints": []
+      },
+      "top_candidates": [
+        {
+          "candidate": {
+            "address": "7301 Burnet Rd, Austin, TX 78757",
+            "lat": 30.3483,
+            "lon": -97.7357
+          },
+          "rank": 1,
+          "rationale": "This location offers the strongest overall profile for a pharmacy in North Austin. The site benefits from a median household income of 103268.0, representing 12.9 percent above the city median, indicating strong purchasing power in the catchment area. The population density of 6350.7 per square mile provides a robust customer base, while the population-weighted access score of 64.6 suggests good reachability. Competition is moderate with 17 same-category pharmacies in the catchment and the nearest competitor 0.75 miles away. Critically, this site has low zoning risk, making it the most permitting-friendly option among the candidates. The unemployment rate of 4.0 percent indicates a stable labor market.",
+          "data_gaps": []
+        },
+        {
+          "candidate": {
+            "address": "3110 Esperanza Crossing, Austin, TX 78758",
+            "lat": 30.4013,
+            "lon": -97.7226
+          },
+          "rank": 2,
+          "rationale": "This location presents strong demographics with a median household income of 89066.0, just 2.6 percent below the city median, and the highest population-weighted access score of 66.9 among all candidates. The median age of 32.0 suggests a younger demographic that may have different pharmacy needs. However, this site faces the highest competitive pressure with 22 same-category pharmacies in the catchment area, though the nearest competitor is 1.1 miles away. The population density of 3427.2 per square mile is lower than other candidates. Labor conditions mirror other sites with a 4.0 percent unemployment rate. A significant concern is the high zoning risk, which could complicate or delay opening.",
+          "data_gaps": []
+        },
+        {
+          "candidate": {
+            "address": "1000 E Rundberg Ln, Austin, TX 78753",
+            "lat": 30.355,
+            "lon": -97.693
+          },
+          "rank": 3,
+          "rationale": "This location serves a lower-income area with a median household income of 38047.0, which is 58.4 percent below the city median, potentially limiting prescription affordability and retail sales. The population density of 6132.5 per square mile is strong, but the population-weighted access score of 59.2 is the lowest among candidates. Competition is moderate with 13 same-category pharmacies in the catchment and the nearest competitor just 0.52 miles away. The site shares the same labor market conditions with a 4.0 percent unemployment rate and identical wage data. The high zoning risk adds regulatory uncertainty that could delay or prevent development.",
+          "data_gaps": []
+        }
+      ],
+      "top_tradeoff": "The top-ranked Burnet Rd location offers superior income demographics and low zoning risk, while the second-ranked Esperanza Crossing site provides better accessibility but faces higher competitive saturation and zoning challenges.",
+      "agents_called": [
+        "get_isochrone",
+        "get_census_profile",
+        "get_poi_density",
+        "get_labor_profile",
+        "get_zoning_risk"
+      ],
+      "agents_skipped": {}
+    }
+  },
+  {
+    "case_id": "fast_food_avoid_saturation",
+    "query_text": "Fast food restaurant, budget-conscious, avoid saturated markets.",
+    "clarification_needed": null,
+    "report": {
+      "query": {
+        "business_type": "fast food restaurant",
+        "candidate_region": "<UNKNOWN>",
+        "priority_weights": {
+          "access": 0.25,
+          "demographics": 0.2,
+          "competition": 0.3,
+          "labor": 0.15,
+          "zoning": 0.1
+        },
+        "hard_constraints": [
+          "avoid saturated markets",
+          "budget-conscious"
+        ]
+      },
+      "top_candidates": [
+        {
+          "candidate": {
+            "address": "2438 E Riverside Dr, Austin, TX 78741",
+            "lat": 30.2405,
+            "lon": -97.728
+          },
+          "rank": 1,
+          "rationale": "This site offers strong accessibility with a population-weighted access score of 53.6 and serves a budget-conscious demographic with a median household income of 39416.0 and high population density of 14693.3 per square mile, ideal for fast food traffic. The median age of 29.0 aligns well with quick-service restaurant customers. Labor conditions are favorable with a median wage of 29310.0 and unemployment rate of 4.0 percent. The site benefits from dense urban surroundings that support high foot traffic and convenience-oriented dining.",
+          "data_gaps": [
+            "Competition saturation could not be determined for this address; verify competitor density before committing",
+            "Zoning risk could not be determined for this address; verify with the city before committing"
+          ]
+        },
+        {
+          "candidate": {
+            "address": "1000 E Rundberg Ln, Austin, TX 78753",
+            "lat": 30.355,
+            "lon": -97.693
+          },
+          "rank": 2,
+          "rationale": "This location provides the highest accessibility score at 59.2 and serves a very budget-conscious market with median household income of 38047.0 and a young median age of 26.5, both favorable for fast food demand. Population density of 6132.5 per square mile supports steady customer flow. Labor market conditions mirror other Austin sites with median wage of 29310.0 and unemployment at 4.0 percent. However, zoning presents a significant obstacle with high risk level in a base district SF zone, which may require costly variances or prohibit restaurant use entirely.",
+          "data_gaps": [
+            "Competition saturation could not be determined for this address; verify competitor density before committing"
+          ]
+        },
+        {
+          "candidate": {
+            "address": "5501 W Slaughter Ln, Austin, TX 78749",
+            "lat": 30.2036,
+            "lon": -97.857
+          },
+          "rank": 3,
+          "rationale": "While this site has the best accessibility score at 65.4, it serves an affluent demographic with median household income of 93750.0, which is 2.5 percent above city median and does not align with the budget-conscious hard constraint for a fast food concept. The older median age of 41.9 and lower population density of 5388.0 per square mile suggest a suburban market less suited to quick-service dining. Labor conditions are consistent with other sites at median wage 29310.0 and unemployment 4.0 percent, but the demographic mismatch is a fundamental concern for this business type.",
+          "data_gaps": [
+            "Competition saturation could not be determined for this address; verify competitor density before committing",
+            "Zoning risk could not be determined for this address; verify with the city before committing"
+          ]
+        }
+      ],
+      "top_tradeoff": "The top-ranked Riverside site offers denser urban demographics and higher population density ideal for fast food, while the second-ranked Rundberg site provides superior accessibility but faces high zoning risk that may block or delay development.",
+      "agents_called": [
+        "get_isochrone",
+        "get_census_profile",
+        "get_poi_density",
+        "get_labor_profile",
+        "get_zoning_risk"
+      ],
+      "agents_skipped": {}
+    }
+  },
+  {
+    "case_id": "upscale_steakhouse_affluent",
+    "query_text": "Upscale steakhouse in West Austin, catering to an affluent clientele.",
+    "clarification_needed": null,
+    "report": {
+      "query": {
+        "business_type": "upscale steakhouse",
+        "candidate_region": "West Austin",
+        "priority_weights": {
+          "access": 0.2,
+          "demographics": 0.35,
+          "competition": 0.2,
+          "labor": 0.15,
+          "zoning": 0.1
+        },
+        "hard_constraints": []
+      },
+      "top_candidates": [
+        {
+          "candidate": {
+            "address": "3300 Bee Cave Rd, Austin, TX 78746",
+            "lat": 30.2903,
+            "lon": -97.8113
+          },
+          "rank": 1,
+          "rationale": "This West Austin location excels in demographics, the highest-weighted priority, with a median household income of 194094.0 dollars\u2014112.2 percent above the city median\u2014and a mature customer base with median age 51.3, both ideal for an upscale steakhouse. The population-weighted access score of 22.3 reflects a lower-density affluent area, typical of West Austin's residential character. Labor conditions are stable with a median wage of 29310.0 dollars and unemployment at 4.0 percent. The site's primary weakness is that zoning risk could not be determined, requiring verification with the city before committing, and competition data is unavailable.",
+          "data_gaps": [
+            "zoning risk could not be determined for this address; verify with the city before committing",
+            "competition data unavailable; same-category count and saturation score could not be assessed"
+          ]
+        },
+        {
+          "candidate": {
+            "address": "1911 Aldrich St, Austin, TX 78723",
+            "lat": 30.2989,
+            "lon": -97.7047
+          },
+          "rank": 2,
+          "rationale": "This East Austin site offers the strongest access score at 69.1, indicating excellent drive-time reach, and the highest population density at 7516.4 per square mile, providing a large potential customer base. Demographics show a median household income of 119638.0 dollars (30.8 percent above city median) and a young median age of 33.4, which may skew slightly younger than the typical upscale steakhouse patron. Labor market conditions mirror the other candidates with a median wage of 29310.0 dollars and 4.0 percent unemployment. However, the property is zoned as a Planned Unit Development requiring case-by-case review of the specific ordinance to confirm restaurant use is permitted, and competition data is missing.",
+          "data_gaps": [
+            "zoning is PUD; specific ordinance must be reviewed to confirm restaurant use is permitted",
+            "competition data unavailable; same-category count and saturation score could not be assessed"
+          ]
+        },
+        {
+          "candidate": {
+            "address": "1100 Congress Ave, Austin, TX 78701",
+            "lat": 30.2747,
+            "lon": -97.7404
+          },
+          "rank": 3,
+          "rationale": "This downtown location provides strong access with a population-weighted score of 58.7 and benefits from low zoning risk in a CS base district. However, demographics are the weakest among the three candidates: median household income is only 92941.0 dollars (just 1.6 percent above city median), well below the affluent profile typically sought for an upscale steakhouse, and the median age of 34.6 skews younger. Population density is moderate at 1943.5 per square mile. Labor conditions are consistent with the other sites at a median wage of 29310.0 dollars and 4.0 percent unemployment. Competition data could not be obtained, leaving market saturation unknown.",
+          "data_gaps": [
+            "competition data unavailable; same-category count and saturation score could not be assessed"
+          ]
+        }
+      ],
+      "top_tradeoff": "The top-ranked Bee Cave Road site offers significantly stronger demographics with a median income of 194094.0 dollars versus 119638.0 dollars at the second-ranked Aldrich Street location, but Aldrich Street provides much better access with a score of 69.1 compared to 22.3 and far higher population density.",
+      "agents_called": [
+        "get_isochrone",
+        "get_census_profile",
+        "get_poi_density",
+        "get_labor_profile",
+        "get_zoning_risk"
+      ],
+      "agents_skipped": {}
+    }
+  },
+  {
+    "case_id": "coworking_nonretail_edge",
+    "query_text": "Opening a coworking office space in Austin.",
+    "clarification_needed": null,
+    "report": {
+      "query": {
+        "business_type": "coworking office space",
+        "candidate_region": "Austin",
+        "priority_weights": {
+          "access": 0.3,
+          "demographics": 0.25,
+          "competition": 0.2,
+          "labor": 0.15,
+          "zoning": 0.1
+        },
+        "hard_constraints": []
+      },
+      "top_candidates": [
+        {
+          "candidate": {
+            "address": "1911 Aldrich St, Austin, TX 78723",
+            "lat": 30.2989,
+            "lon": -97.7047
+          },
+          "rank": 1,
+          "rationale": "This site scores highest overall due to exceptional demographic strength and superior accessibility. The catchment area has a median household income of 119638.0, representing 30.8 percent above city median, and the highest population density at 7516.4 per square mile\u2014ideal for attracting coworking members from a dense, affluent professional base. The population-weighted access score of 69.1 is the strongest of all candidates, ensuring maximum visibility and convenience for potential members. Labor conditions are favorable with an unemployment rate of 4.0 percent and median wages of 29310.0. The median age of 33.4 aligns well with the typical coworking demographic of young professionals and entrepreneurs.",
+          "data_gaps": [
+            "Competition data could not be determined for this address; verify saturation of existing coworking spaces before committing",
+            "Zoning risk is unknown due to Planned Unit Development (PUD) designation; the specific PUD ordinance for this property must be pulled and reviewed to confirm coworking office space is a permitted use"
+          ]
+        },
+        {
+          "candidate": {
+            "address": "3110 Esperanza Crossing, Austin, TX 78758",
+            "lat": 30.4013,
+            "lon": -97.7226
+          },
+          "rank": 2,
+          "rationale": "This location offers the best accessibility with a population-weighted access score of 66.9 and serves a younger demographic with a median age of 32.0, which is highly attractive for coworking clientele. The population density of 3427.2 per square mile provides a substantial customer base, though lower than the top-ranked site. The median household income of 89066.0 is solid, though -2.6 percent below city median. Labor market conditions mirror other Austin sites with 4.0 percent unemployment and median wages of 29310.0. However, the zoning presents a significant concern with a high risk level under base district MI, which may require conditional use permits or variances for office use.",
+          "data_gaps": [
+            "Competition data could not be determined for this address; verify saturation of existing coworking spaces before committing"
+          ]
+        },
+        {
+          "candidate": {
+            "address": "1100 Congress Ave, Austin, TX 78701",
+            "lat": 30.2747,
+            "lon": -97.7404
+          },
+          "rank": 3,
+          "rationale": "This downtown location benefits from low zoning risk under base district CS and serves an affluent catchment with median household income of 92941.0, which is 1.6 percent above city median. The median age of 34.6 fits the target coworking demographic well. However, this site is significantly constrained by the lowest population-weighted access score of 58.7 and the lowest population density at 1943.5 per square mile, limiting the pool of potential members within convenient reach. Labor conditions are consistent with the Austin market at 4.0 percent unemployment and median wages of 29310.0. The downtown address may carry prestige but the accessibility and density metrics suggest limited organic foot traffic compared to the other candidates.",
+          "data_gaps": [
+            "Competition data could not be determined for this address; verify saturation of existing coworking spaces before committing"
+          ]
+        }
+      ],
+      "top_tradeoff": "The #1 ranked site at 1911 Aldrich St offers superior demographics and the highest population density but has unknown zoning risk due to PUD designation, while the #2 ranked site at 3110 Esperanza Crossing has confirmed high zoning risk but better accessibility and a younger target demographic.",
+      "agents_called": [
+        "get_isochrone",
+        "get_census_profile",
+        "get_poi_density",
+        "get_labor_profile",
+        "get_zoning_risk"
+      ],
+      "agents_skipped": {}
+    }
+  },
+  {
+    "case_id": "hard_constraint_rent_cap",
+    "query_text": "Fast-casual restaurant in Austin with rent under $8,000/month.",
+    "clarification_needed": null,
+    "report": {
+      "query": {
+        "business_type": "fast-casual restaurant",
+        "candidate_region": "Austin",
+        "priority_weights": {
+          "access": 0.25,
+          "demographics": 0.25,
+          "competition": 0.2,
+          "labor": 0.15,
+          "zoning": 0.15
+        },
+        "hard_constraints": [
+          "rent under $8,000/month"
+        ]
+      },
+      "top_candidates": [
+        {
+          "candidate": {
+            "address": "900 E 11th St, Austin, TX 78702",
+            "lat": 30.2701,
+            "lon": -97.7313
+          },
+          "rank": 1,
+          "rationale": "This site excels in accessibility with a population-weighted access score of 82.9, the highest among all candidates, and benefits from very high population density of 6042.1 per square mile, providing strong foot traffic potential. The location has low zoning risk and shares the same favorable labor market conditions as other Austin sites, with median wages of 29310.0 and unemployment at 4.0 percent. While the median household income of 73359.0 is lower than other candidates, the exceptional accessibility and dense urban environment make this an attractive high-traffic location for a fast-casual concept.",
+          "data_gaps": [
+            "rent data not provided; verify rent is under $8,000/month before committing",
+            "saturation_score could not be determined"
+          ]
+        },
+        {
+          "candidate": {
+            "address": "1100 Congress Ave, Austin, TX 78701",
+            "lat": 30.2747,
+            "lon": -97.7404
+          },
+          "rank": 2,
+          "rationale": "This downtown location offers the strongest demographic profile with a median household income of 92941.0, representing 1.6 times the city median, indicating affluent customers who can support premium fast-casual pricing. The site has low zoning risk and a population-weighted access score of 58.7. Labor market conditions are favorable with median wages of 29310.0 and unemployment at 4.0 percent. The nearest competitors are 0.18, 0.22, and 0.23 miles away, providing some competitive breathing room despite 655 same-category restaurants in the catchment area.",
+          "data_gaps": [
+            "rent data not provided; verify rent is under $8,000/month before committing",
+            "saturation_score could not be determined"
+          ]
+        },
+        {
+          "candidate": {
+            "address": "3110 Esperanza Crossing, Austin, TX 78758",
+            "lat": 30.4013,
+            "lon": -97.7226
+          },
+          "rank": 3,
+          "rationale": "This northern Austin location offers moderate accessibility with a population-weighted access score of 66.9 and solid demographics including a median household income of 89066.0 and population density of 3427.2 per square mile. The site benefits from lower competitive intensity with 412 same-category restaurants in the catchment, fewer than the downtown locations. However, the site carries high zoning risk, which could complicate permitting and delay opening. Labor conditions match other Austin sites with median wages of 29310.0 and unemployment at 4.0 percent.",
+          "data_gaps": [
+            "rent data not provided; verify rent is under $8,000/month before committing",
+            "saturation_score could not be determined"
+          ]
+        }
+      ],
+      "top_tradeoff": "The top-ranked site at 900 E 11th St offers superior accessibility and population density, while the second-ranked 1100 Congress Ave location provides significantly higher household incomes and customer spending power.",
+      "agents_called": [
+        "get_isochrone",
+        "get_census_profile",
+        "get_poi_density",
+        "get_labor_profile",
+        "get_zoning_risk"
+      ],
+      "agents_skipped": {}
+    }
+  },
+  {
+    "case_id": "hard_constraint_drive_thru",
+    "query_text": "Restaurant with a drive-thru required, Austin.",
+    "clarification_needed": null,
+    "report": {
+      "query": {
+        "business_type": "restaurant",
+        "candidate_region": "Austin",
+        "priority_weights": {
+          "access": 0.3,
+          "demographics": 0.2,
+          "competition": 0.2,
+          "labor": 0.15,
+          "zoning": 0.15
+        },
+        "hard_constraints": [
+          "drive-thru required"
+        ]
+      },
+      "top_candidates": [
+        {
+          "candidate": {
+            "address": "5501 W Slaughter Ln, Austin, TX 78749",
+            "lat": 30.2036,
+            "lon": -97.857
+          },
+          "rank": 1,
+          "rationale": "This site offers the strongest overall profile with a population-weighted access score of 65.4 and serves a catchment with median household income of 93750.0, which is 2.5 percent above the city median. Competition is moderate with 95 same-category restaurants in the catchment and nearest competitors at 0.5, 0.71, and 1.1 miles. Labor conditions mirror the county baseline with median wages of 29310.0 and unemployment at 4.0 percent. The primary risk is that zoning status could not be determined; verify permitting and drive-thru allowances with the city before committing.",
+          "data_gaps": [
+            "zoning risk could not be determined for this address; verify with the city before committing"
+          ]
+        },
+        {
+          "candidate": {
+            "address": "1000 E Rundberg Ln, Austin, TX 78753",
+            "lat": 30.355,
+            "lon": -97.693
+          },
+          "rank": 2,
+          "rationale": "Rationale withheld: automated citation check could not verify all figures against source data after repeated attempts. Manual review required.",
+          "data_gaps": [
+            "citation_validation_failed"
+          ]
+        },
+        {
+          "candidate": {
+            "address": "2438 E Riverside Dr, Austin, TX 78741",
+            "lat": 30.2405,
+            "lon": -97.728
+          },
+          "rank": 3,
+          "rationale": "Rationale withheld: automated citation check could not verify all figures against source data after repeated attempts. Manual review required.",
+          "data_gaps": [
+            "zoning risk could not be determined for this address; verify with the city before committing",
+            "citation_validation_failed"
+          ]
+        }
+      ],
+      "top_tradeoff": "The top-ranked site on W Slaughter Ln serves a significantly more affluent catchment with median household income of 93750.0 versus 38047.0 at Rundberg Ln, but zoning is unverified at W Slaughter whereas Rundberg has a known high zoning risk that requires mitigation.",
+      "agents_called": [
+        "get_isochrone",
+        "get_census_profile",
+        "get_poi_density",
+        "get_labor_profile",
+        "get_zoning_risk"
+      ],
+      "agents_skipped": {}
+    }
+  },
+  {
+    "case_id": "explicit_custom_weights",
+    "query_text": "Coffee shop in Austin. I care 50% about access, 30% about competition, 10% demographics, 5% labor, 5% zoning.",
+    "clarification_needed": null,
+    "report": {
+      "query": {
+        "business_type": "coffee shop",
+        "candidate_region": "Austin",
+        "priority_weights": {
+          "access": 0.5,
+          "competition": 0.3,
+          "demographics": 0.1,
+          "labor": 0.05,
+          "zoning": 0.05
+        },
+        "hard_constraints": []
+      },
+      "top_candidates": [
+        {
+          "candidate": {
+            "address": "1911 Aldrich St, Austin, TX 78723",
+            "lat": 30.2989,
+            "lon": -97.7047
+          },
+          "rank": 1,
+          "rationale": "This site scores highest on access with a population-weighted access score of 69.1, the strongest among all candidates and heavily weighted in the analysis. The location benefits from the highest population density at 7516.4 per square mile and a strong median household income of 119638.0, indicating a dense, affluent customer base. Competition is moderate with 139 coffee shops in the catchment area and the nearest competitor 0.25 miles away, providing some breathing room. The median age of 33.4 aligns well with typical coffee shop demographics. Labor conditions mirror the other Austin sites with a median wage of 29310.0 and 4.0 percent unemployment.",
+          "data_gaps": [
+            "Zoning risk is unknown; this property is a Planned Unit Development (PUD) requiring review of the specific ordinance to confirm coffee shop use is permitted"
+          ]
+        },
+        {
+          "candidate": {
+            "address": "1600 S Congress Ave, Austin, TX 78704",
+            "lat": 30.25,
+            "lon": -97.75
+          },
+          "rank": 2,
+          "rationale": "This South Congress location offers the highest median household income at 120890.0 and exceptional population density of 6070.0 per square mile, suggesting a wealthy, urban customer base. The site has the lowest competition with only 111 coffee shops in the catchment and benefits from very close proximity to the nearest competitor at just 0.08 miles, indicating a proven coffee shop corridor. However, the access score of 49.4 is the lowest of the three candidates, which is a significant drawback given access carries 50 percent of the priority weight. Zoning shows low risk with a CS base district designation, and labor metrics match the other sites.",
+          "data_gaps": [
+            "Saturation score could not be determined for this address"
+          ]
+        },
+        {
+          "candidate": {
+            "address": "1100 Congress Ave, Austin, TX 78701",
+            "lat": 30.2747,
+            "lon": -97.7404
+          },
+          "rank": 3,
+          "rationale": "This downtown Congress Avenue site delivers a solid access score of 58.7 and low zoning risk with a CS base district. The location faces the highest competition with 150 coffee shops in the catchment area, though the nearest competitor is 0.2 miles away. Demographics show a median household income of 92941.0 and population density of 1943.5 per square mile, both the lowest among the three candidates, suggesting a less dense and less affluent immediate trade area. The median age of 34.6 is favorable for coffee consumption, and labor conditions are consistent across all Austin sites with a median wage of 29310.0.",
+          "data_gaps": [
+            "Saturation score could not be determined for this address"
+          ]
+        }
+      ],
+      "top_tradeoff": "The top-ranked Aldrich St site offers superior access and population density but carries zoning uncertainty due to its PUD designation, while the second-ranked South Congress site provides the wealthiest demographics and lowest competition but suffers from weaker accessibility.",
+      "agents_called": [
+        "get_isochrone",
+        "get_census_profile",
+        "get_poi_density",
+        "get_labor_profile",
+        "get_zoning_risk"
+      ],
+      "agents_skipped": {}
+    }
+  },
+  {
+    "case_id": "adversarial_nonsensical",
+    "query_text": "asdkfjasldkfj purple monkey dishwasher",
+    "clarification_needed": "What type of business are you looking to open? (e.g., coffee shop, restaurant, retail store, gym, etc.)",
+    "report": null
+  },
+  {
+    "case_id": "adversarial_vague_region",
+    "query_text": "Somewhere good to open a business in Texas.",
+    "clarification_needed": "What type of business are you looking to open in Texas? (For example: coffee shop, restaurant, retail store, gym, etc.)",
+    "report": null
+  }
+]

@@ -1,0 +1,102 @@
+{
+  "per_case": [
+    {
+      "case_id": 1,
+      "precision": 1.0,
+      "recall": 1.0,
+      "agents_called": [
+        "get_census_profile",
+        "get_isochrone",
+        "get_labor_profile",
+        "get_poi_density",
+        "get_zoning_risk"
+      ]
+    },
+    {
+      "case_id": 2,
+      "precision": 1.0,
+      "recall": 1.0,
+      "agents_called": [
+        "get_census_profile",
+        "get_isochrone",
+        "get_labor_profile",
+        "get_poi_density",
+        "get_zoning_risk"
+      ]
+    },
+    {
+      "case_id": 3,
+      "precision": 1.0,
+      "recall": 1.0,
+      "agents_called": [
+        "get_census_profile",
+        "get_isochrone",
+        "get_labor_profile",
+        "get_poi_density",
+        "get_zoning_risk"
+      ]
+    },
+    {
+      "case_id": 4,
+      "precision": 1.0,
+      "recall": 1.0,
+      "agents_called": [
+        "get_census_profile",
+        "get_isochrone",
+        "get_labor_profile",
+        "get_poi_density",
+        "get_zoning_risk"
+      ]
+    },
+    {
+      "case_id": 5,
+      "precision": 1.0,
+      "recall": 1.0,
+      "agents_called": [
+        "get_census_profile",
+        "get_isochrone",
+        "get_labor_profile",
+        "get_poi_density",
+        "get_zoning_risk"
+      ]
+    },
+    {
+      "case_id": 6,
+      "precision": 1.0,
+      "recall": 1.0,
+      "agents_called": [
+        "get_census_profile",
+        "get_isochrone",
+        "get_labor_profile",
+        "get_poi_density",
+        "get_zoning_risk"
+      ]
+    },
+    {
+      "case_id": 7,
+      "precision": 1.0,
+      "recall": 1.0,
+      "agents_called": [
+        "get_census_profile",
+        "get_isochrone",
+        "get_labor_profile",
+        "get_poi_density",
+        "get_zoning_risk"
+      ]
+    },
+    {
+      "case_id": 8,
+      "precision": 1.0,
+      "recall": 1.0,
+      "agents_called": [
+        "get_census_profile",
+        "get_isochrone",
+        "get_labor_profile",
+        "get_poi_density",
+        "get_zoning_risk"
+      ]
+    }
+  ],
+  "mean_precision": 1.0,
+  "mean_recall": 1.0
+}
