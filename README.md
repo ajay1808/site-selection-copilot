@@ -4,6 +4,42 @@ You ask it something like *"best spot for a fast-casual restaurant near East Aus
 
 Right now it only really knows Austin, TX. Ask it about Manhattan or Bangalore and it will tell you honestly what it doesn't know, instead of guessing.
 
+## How it works
+
+```mermaid
+flowchart TD
+    Q["🗣️ Your question<br/>'best spot for a taco shop…'"] --> P["1 — Parse into structured fields"]
+    P --> C{"2 — Clear enough?"}
+    C -- no --> CLARIFY["❌ Asks a clarifying question<br/>stops here, no guessing"]
+    C -- yes --> D["3 — Decide which of the 5 tools apply<br/>(default: all five)"]
+
+    D --> T1["get_isochrone<br/><i>OpenRouteService</i>"]
+    D --> T2["get_census_profile<br/><i>US Census (ACS)</i>"]
+    D --> T3["get_poi_density<br/><i>OpenStreetMap</i>"]
+    D --> T4["get_labor_profile<br/><i>US Bureau of Labor Stats</i>"]
+    D --> T5["get_zoning_risk<br/><i>Austin GIS + lookup</i>"]
+
+    T1 & T2 & T3 & T4 & T5 --> G{"All five failed?"}
+    G -- yes --> INSUFF["❌ 'Not enough data' —<br/>no model call, no guess"]
+    G -- no --> S["4 — Synthesis Agent<br/>ranks candidates, writes a reason for each"]
+
+    S --> V{"Every number checks out<br/>against the real data?"}
+    V -- "no — rewrite, up to 3×" --> S
+    V -- yes --> R["✅ 5 — Your answer<br/>top 3, each reason verified"]
+```
+
+Walking through it:
+
+1. **Parse.** Your sentence becomes structured data — business type, what you care about most, any hard limits (like "needs a drive-thru"). A follow-up that only mentions new priorities still remembers the rest from your last question.
+2. **Clear enough?** Before spending a single API call, it checks whether it actually understood you. Ask it to site a store selling "nostalgia and vibes" and it stops here and asks what you mean.
+3. **Decide which tools apply.** All five, by default. It only skips one with a stated reason — e.g. an unstaffed vending kiosk correctly skips `get_labor_profile`, since there's no staff to price.
+4. **Five tools, five real APIs.** Every box above is a live call to a public data source, not a model guessing what the data probably looks like. A failed call reports `status: failed` honestly instead of quietly returning something plausible-looking.
+5. **Synthesis, then a fact-check on itself.** One model call ranks the candidates and writes a reason for each. A separate, non-negotiable check then confirms every number in that reason actually appears in the data — if it finds one that was made up, it sends it back to be rewritten (up to 3 times), and shows "manual review needed" rather than a shaky sentence if it's still not clean.
+
+**Two exits matter as much as the happy path.** If the question doesn't make sense, it asks instead of guessing. If every data source fails, it says "not enough data" — without even calling the model — instead of ranking on nothing. Both are tested, not hypothetical.
+
+**Two real bugs this process caught:** an automated grader's own written explanation once referenced a candidate that wasn't in the data it was given — the *score* it landed on was still right, but its self-explanation wasn't fully faithful, a good reminder to spot-check even the checker. Separately, testing a Manhattan address surfaced that its income was being compared against *Austin's* median by default (a hardcoded leftover) — now that comparison only happens when the system actually recognizes the city.
+
 ## What it's made of
 
 Five small tools, each pulling from one real, public data source:
