@@ -5,15 +5,20 @@ Run with:
 """
 
 import json
+import os
 import subprocess
 import sys
 
 import streamlit as st
+from dotenv import load_dotenv
 
 import city_registry
+import credentials
 from orchestrator import Session
 from schemas import CandidateSite
 from tools.zoning import _geocode
+
+load_dotenv()
 
 st.set_page_config(page_title="Site Selection Copilot", page_icon="🗺️", layout="wide")
 
@@ -127,6 +132,70 @@ st.caption("Ask a question, get a ranked, cited recommendation. Every number is 
 with st.sidebar:
     st.header("Setup")
 
+    with st.expander("🔑 API keys & routing", expanded=not os.environ.get("ANTHROPIC_API_KEY")):
+        st.caption(
+            "Three keys make this run: Census, BLS, and Anthropic (all free to get). "
+            "A fourth, ORS, is optional — see routing mode below."
+        )
+        have = {k: bool(os.environ.get(k)) for k in ["CENSUS_API_KEY", "BLS_API_KEY", "ANTHROPIC_API_KEY", "ORS_API_KEY"]}
+        status_line = "  ".join(f"{'✅' if v else '⬜'} {k.replace('_API_KEY','')}" for k, v in have.items())
+        st.markdown(status_line)
+
+        st.markdown("**Step 1 — get free keys** (skip any you already have):")
+        st.markdown(
+            "- Census: [api.census.gov/data/key_signup.html](https://api.census.gov/data/key_signup.html) — instant\n"
+            "- BLS: [bls.gov/developers](https://www.bls.gov/developers/) — instant\n"
+            "- Anthropic: [console.anthropic.com](https://console.anthropic.com) — needs billing set up"
+        )
+
+        st.markdown("**Step 2 — routing (`get_isochrone`)**, pick one:")
+        routing_mode = st.radio(
+            "Routing mode",
+            ["Public ORS API (recommended)", "Self-hosted Docker"],
+            index=0 if os.environ.get("ORS_MODE", "docker") == "api" else 1,
+            label_visibility="collapsed",
+        )
+        if routing_mode.startswith("Public"):
+            st.caption(
+                "No install needed, works for any city worldwide immediately. "
+                "Free tier: 500 isochrone requests/day (confirmed live against "
+                "the real API, not just docs)."
+            )
+            ors_key_input = st.text_input(
+                "ORS API key", value=os.environ.get("ORS_API_KEY", ""), type="password",
+                placeholder="get one free at openrouteservice.org/dev",
+            )
+            if st.button("Use this key", disabled=not ors_key_input):
+                os.environ["ORS_API_KEY"] = ors_key_input
+                os.environ["ORS_MODE"] = "api"
+                st.rerun()
+            from tools.isochrone import quota_status
+            if quota_status["remaining"] is not None:
+                st.caption(f"Quota: {quota_status['remaining']} / {quota_status['limit']} requests left today")
+        else:
+            st.caption(
+                "No daily limit, but needs Docker installed and a one-time download+build per "
+                "city (a few minutes each). Onboard cities in the section below."
+            )
+            if st.button("Switch to Docker mode"):
+                os.environ["ORS_MODE"] = "docker"
+                st.rerun()
+
+        st.markdown("**Or, upload credentials directly:**")
+        uploaded = st.file_uploader("`.env` or `.json` file", type=["env", "json", "txt"], label_visibility="collapsed")
+        persist = st.checkbox("Save to .env for future runs (plaintext on disk)", value=False)
+        if uploaded is not None:
+            parsed = credentials.parse_credentials_file(uploaded.name, uploaded.getvalue())
+            if parsed:
+                st.caption(f"Found: {', '.join(parsed.keys())}")
+                if st.button("Apply uploaded credentials"):
+                    credentials.apply_credentials(parsed, persist=persist)
+                    st.success("Applied for this session" + (" and saved to .env" if persist else ""))
+                    st.rerun()
+            else:
+                st.warning("No recognized keys found in that file.")
+
+    st.divider()
     cities = city_registry.list_cities()
     city = st.selectbox("City", cities, index=cities.index(city_registry.default_city()) if city_registry.default_city() in cities else 0)
     entry = city_registry.get_city(city)

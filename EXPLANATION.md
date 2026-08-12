@@ -43,14 +43,34 @@ a field in that JSON.
 **What it answers:** "how much area (and by extension, how many people) can
 reach this exact point within N minutes by car or on foot?"
 
-**Data source:** [OpenRouteService](https://openrouteservice.org/) (ORS), self-hosted
-via Docker — not the public ORS API, a private instance running against a real
-OpenStreetMap extract for whichever city you're asking about.
+**Data source:** [OpenRouteService](https://openrouteservice.org/) (ORS) — in
+one of two modes, chosen via `ORS_MODE`:
 
-**Exact call:** `POST http://localhost:{city's port}/ors/v2/isochrones/{driving-car|foot-walking}`
-with `{"locations": [[lon, lat]], "range": [minutes*60], "range_type": "time"}`.
+- **`api` (default)** — the real public ORS API (`api.openrouteservice.org`),
+  authenticated with a free key (`ORS_API_KEY`, header `Authorization: <key>`,
+  no "Bearer" prefix). Covers any city worldwide immediately, no per-city setup.
+- **`docker`** — a self-hosted ORS instance per onboarded city, each on its own
+  port (`cities.json` tracks which). Only works for cities `onboard_city.py`
+  has actually built a routing graph for.
+
+**Exact call:** `POST {base_url}/v2/isochrones/{driving-car|foot-walking}` with
+`{"locations": [[lon, lat]], "range": [minutes*60], "range_type": "time"}`.
 ORS returns a GeoJSON polygon — the actual drivable/walkable reachable area,
 routed over real streets, not a circle.
+
+**Real, verified rate limits for the public API:** rather than trust
+third-party docs (which turned out inconsistent, and ORS's own plans page is
+behind client-side JS a fetcher can't read), the actual limit was confirmed by
+making a real request and reading the API's own `x-ratelimit-*` response
+headers: **500 isochrone requests/day**, on a rolling 24-hour window (the
+`x-ratelimit-reset` timestamp moved by exactly 86,400 seconds between two
+consecutive calls). There's no per-minute figure in those headers, so
+`tools/isochrone.py` applies a conservative, community-reported 20-requests/
+minute client-side throttle as a safety margin — not a guarantee, since ORS
+doesn't expose that number directly. The module tracks `quota_status` (limit /
+remaining / reset) from the live headers on every call, and the Streamlit UI
+displays it once at least one request has been made — real observed quota,
+not an estimate.
 
 **How the access score is computed:** the polygon's area is calculated in square
 miles (via `shapely`, with a flat-earth approximation — accurate enough at
@@ -59,14 +79,9 @@ a 10-minute drive isochrone spans in a mid-density US city) and clamped to 0–1
 This is explicitly a placeholder for true population-weighted access scoring —
 see §7.
 
-**Multi-city routing:** each onboarded city gets its own dedicated ORS Docker
-container on its own port (`cities.json` tracks which). `get_isochrone(candidate,
-mode, minutes, city="Austin")` looks up that city's port before calling ORS. If
-the city isn't onboarded (or its container isn't running), this returns
-`status: "failed"` — never silently reaching Austin's graph for a New York query.
-
-**Failure modes handled:** ORS down or unreachable, candidate outside the loaded
-map extract's bounds, malformed response — all collapse to `status: "failed"`,
+**Failure modes handled:** ORS down/unreachable/rate-limited, no API key set in
+`api` mode, city not onboarded in `docker` mode, candidate outside a loaded map
+extract's bounds, malformed response — all collapse to `status: "failed"`,
 empty `catchment_geojson`, `access_score: 0.0`. No fabricated catchment.
 
 ---
@@ -394,3 +409,32 @@ Collected in one place, rather than scattered as caveats:
   density already work automatically with zero setup; zoning does not, and
   isn't expected to without someone finding and wiring in that city's specific
   GIS source.
+- **The public ORS API's 500/day quota is per key, not per user.** If this is
+  ever deployed for multiple simultaneous people to share, they share that one
+  quota. Fine for individual/local use; a real multi-user deployment would
+  need either the Docker mode (unlimited, but per-city setup and more compute)
+  or a paid ORS plan with a higher cap.
+- **Uploaded/pasted credentials aren't encrypted.** `credentials.py`'s "save to
+  .env" option writes plaintext to disk, the same as hand-editing the file —
+  standard for local API-key storage, but worth knowing before this runs
+  anywhere shared or multi-tenant.
+
+## 8. Setup & credentials (`credentials.py`, the sidebar's "🔑 API keys & routing" panel)
+
+Three ways to supply the four possible keys (Census, BLS, Anthropic required;
+ORS optional depending on routing mode):
+
+1. **Paste directly** into the sidebar — applied to `os.environ` for that
+   session immediately.
+2. **Upload a file** — `.env` (dotenv: `KEY=VALUE` per line, `#` comments) or
+   flat `.json` (`{"KEY": "VALUE"}`). Either format works; only the four
+   recognized key names are ever read out of it, everything else in the file
+   is ignored. A "save to .env" checkbox controls whether this persists past
+   the current session (existing keys in `.env` are preserved, not clobbered).
+3. **Edit `.env` directly** — the traditional path, still fully supported;
+   the UI is additive, not a replacement for it.
+
+The routing-mode switch in the same panel just sets `ORS_MODE` in the
+environment (`"api"` or `"docker"`) — `tools/isochrone.py` reads it fresh on
+every call, so switching modes mid-session takes effect on the next query,
+no restart needed.

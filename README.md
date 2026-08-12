@@ -48,7 +48,7 @@ Five tools, each pulling from a real, public data source. Two of them (census, l
 
 | Tool | What it answers | Where the data comes from | Coverage |
 |---|---|---|---|
-| `get_isochrone` | "How far can someone actually drive to reach this in 10 minutes?" | OpenRouteService (self-hosted, one Docker container per onboarded city) | Any onboarded city |
+| `get_isochrone` | "How far can someone actually drive to reach this in 10 minutes?" | OpenRouteService — either their public API (a free key, no setup) or a self-hosted Docker container per city | Public API: any city worldwide, no onboarding. Docker: only onboarded cities |
 | `get_census_profile` | "Who lives in that area — income, age, density?" | US Census Bureau (ACS 5-year survey) | Any US location, automatically |
 | `get_poi_density` | "How many competitors are already there?" | OpenStreetMap | Anywhere in the world |
 | `get_labor_profile` | "What would it cost to staff this, and is unemployment high or low here?" | Bureau of Labor Statistics | Any US location, automatically |
@@ -63,13 +63,22 @@ An orchestrator (built with LangGraph) decides which of these five to call for a
 source .venv/bin/activate
 streamlit run app.py
 ```
-Pick a city, add a few candidate addresses, ask your question. Toggle "Show agent thinking" to see the raw data each tool returned, the reallocated weights, and the citation-checker's retry history for the query you just ran.
+The sidebar has a **🔑 API keys & routing** panel that walks you through what's needed: links to get the three free keys (Census, BLS, Anthropic), a choice of routing mode, and a place to paste or upload credentials. Once set up: pick a city, add a few candidate addresses, ask your question. Toggle "Show agent thinking" to see the raw data each tool returned, the reallocated weights, and the citation-checker's retry history.
 
-**Onboard a new city:**
-```bash
-python onboard_city.py "Dallas"
-```
-This downloads real map data for that city, spins up a dedicated routing container for it, and registers it — usually a few minutes, mostly spent building the routing graph. Census, labor, and competitor data need no setup at all; zoning will honestly report "no coverage" until someone wires in a real GIS source for that city (see `EXPLANATION.md`).
+**Routing mode — pick one:**
+- **Public ORS API (recommended, default)** — paste a free key from [openrouteservice.org/dev](https://openrouteservice.org/dev/#/signup), works for any city worldwide immediately, no Docker needed. Free tier: 500 isochrone requests/day, confirmed live against the real API's own rate-limit headers (not just their docs, which turned out to be behind a JS-rendered dashboard). The UI shows your remaining quota once you've made a request.
+- **Self-hosted Docker** — no daily cap, but needs Docker installed and a one-time download+build per city:
+  ```bash
+  python onboard_city.py "Dallas"
+  ```
+  Geocodes the city, downloads real OSM map data (BBBike's catalog first, a larger Geofabrik regional extract as fallback), spins up a dedicated routing container, and registers it — a few minutes, mostly spent building the graph.
+
+Either way, census, labor, and competitor density need no per-city setup at all; zoning will honestly report "no coverage" until someone wires in a real GIS source for that city (see `EXPLANATION.md`).
+
+**Credentials — three ways to supply them:**
+1. Paste directly into the sidebar (Anthropic, ORS).
+2. Upload a `.env` or `.json` file with the sidebar's file uploader — either format works, only recognized key names are read.
+3. Edit `.env` directly (see the file for the expected format). This is what persists across restarts; the UI has a "save to .env" checkbox if you'd rather not hand-edit it.
 
 **Command line** (for scripting or a quick sanity check):
 ```bash
@@ -77,18 +86,18 @@ python chat.py          # interactive REPL
 python orchestrator.py  # a scripted two-turn demo
 ```
 
-You'll need three free API keys in a `.env` file — Census, BLS, and Anthropic — see `.env` for the format.
-
 ## Where things stand
 
 - **Phase 0–1** (the five data tools + the orchestrator that ties them together): done, tested against real Austin addresses.
 - **Phase 2** (does it actually work well?): done. Ran it against 8 real, recent Austin restaurant/retail openings and checked whether it would've picked the real winning spot — it did, 7 out of 8 times. Also stress-tested it against places it was never built for (Manhattan, Ithaca, Bangalore, Chennai) to make sure it fails *honestly* rather than making things up — it does.
 - **Phase 3** (multi-city, a real UI, more capable agents): done. See `EXPLANATION.md` for the full detail on what each agent does and how coverage actually spreads across cities.
-- **Phase 4** (fork-and-run with zero setup): not started. Today it needs Docker, three API keys, and a Python environment — getting that down to one command with no prerequisites is the next real piece of work, not just a docs update.
+- **Phase 4** (fork-and-run with zero setup): in progress. Docker is now optional — the public ORS API removes it entirely for routing, so a fresh clone genuinely needs just a Python environment and (free, quick) API keys, which the UI now walks you through. Still open: an actual one-command bootstrap script, and Docker-mode is still the only path with no daily quota.
 
 ## Honest limitations
 
 - **Zoning coverage is opt-in per city.** There's no general API for "give me any city's zoning map," so it stays Austin-only until someone manually wires up another city's GIS source. Everywhere else, `get_zoning_risk` reports `no_coverage` honestly, and the ranking logic reallocates that weight elsewhere instead of penalizing the candidate for it.
+- **The public ORS API's 500/day quota is shared across everyone using your key.** Fine for trying the tool out or light use; a heavily-used public deployment would need either the Docker mode (no cap, but per-city setup) or a paid ORS plan.
+- **Uploaded credentials aren't encrypted at rest.** The "save to .env" option writes plaintext to disk, same as hand-editing the file — normal for local API-key storage, but worth knowing if this ever runs somewhere multi-tenant.
 - **No memory of the past.** All the data is *live* — if you ask "where would this have opened in 2023," it can't rewind. It only knows today.
 - **It ranks candidates you give it, not the whole city.** There's no "scan all of Austin" feature yet — you tell it which addresses to consider, and it ranks those.
 - **Hard constraints are judged, not verified.** Something like "rent under $8,000/month" gets factored into the ranking by the model's judgment — none of the five tools actually return commercial rent data, so there's nothing to check that claim against.
