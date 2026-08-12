@@ -36,8 +36,6 @@ class CandidateReport:
 def run_pipeline(
     candidates: list[CandidateSite],
     category: str,
-    county_fips: str = "48453",
-    occupation_code: str = "35-3023",
     mode: str = "drive",
     minutes: int = 10,
 ) -> list[CandidateReport]:
@@ -48,7 +46,7 @@ def run_pipeline(
         isochrone = get_isochrone(candidate, mode=mode, minutes=minutes)
         demographics = get_census_profile(candidate)
         competitors = get_poi_density(candidate, isochrone.catchment_geojson, category)
-        labor = get_labor_profile(candidate, county_fips=county_fips, occupation_code=occupation_code)
+        labor = get_labor_profile(candidate, business_type=category)
         zoning = get_zoning_risk(candidate, candidate.address)
         reports.append(CandidateReport(candidate, isochrone, demographics, competitors, labor, zoning))
     return reports

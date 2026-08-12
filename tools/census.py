@@ -12,15 +12,8 @@ CENSUS_API_KEY = os.environ.get("CENSUS_API_KEY")
 ACS_YEAR = "2023"
 SQ_METERS_PER_SQ_MILE = 2_589_988.11
 
-# City-level comparison point, keyed by the candidate's state FIPS so a
-# candidate outside covered territory never gets compared against the wrong
-# city's median. Phase 0 is Austin-only; extend both maps when Phase 3 adds
-# Houston/Dallas coverage.
-_CITY_PLACE_FIPS = {"Austin": ("48", "05000")}
-_STATE_FIPS_TO_CITY = {"48": "Austin"}
-
 _CENSUS_MISSING = -666666666  # Census API's sentinel for "not available"
-_city_median_income_cache: dict[str, float | None] = {}
+_city_median_income_cache: dict[tuple[str, str], float | None] = {}
 
 
 def _clean(value) -> float | None:
@@ -30,9 +23,12 @@ def _clean(value) -> float | None:
     return None if num == _CENSUS_MISSING else num
 
 
-def _get_city_median_income(city: str) -> float | None:
-    if city not in _city_median_income_cache:
-        state, place = _CITY_PLACE_FIPS[city]
+def _get_place_median_income(state: str, place: str) -> float | None:
+    """ACS median household income for a Census "place" (an incorporated
+    city/town), discovered dynamically per-candidate -- no hardcoded city
+    list. Works for any US city; results are cached by (state, place)."""
+    key = (state, place)
+    if key not in _city_median_income_cache:
         resp = httpx.get(
             f"https://api.census.gov/data/{ACS_YEAR}/acs/acs5",
             params={"get": "B19013_001E", "for": f"place:{place}", "in": f"state:{state}", "key": CENSUS_API_KEY},
@@ -40,8 +36,8 @@ def _get_city_median_income(city: str) -> float | None:
         )
         resp.raise_for_status()
         _, row = resp.json()
-        _city_median_income_cache[city] = _clean(row[0])
-    return _city_median_income_cache[city]
+        _city_median_income_cache[key] = _clean(row[0])
+    return _city_median_income_cache[key]
 
 
 @traced("get_census_profile")
@@ -54,14 +50,15 @@ def get_census_profile(candidate: CandidateSite) -> DemographicsResult:
                 "y": candidate.lat,
                 "benchmark": "Public_AR_Current",
                 "vintage": "Current_Current",
-                "layers": "Census Tracts",
+                "layers": "Census Tracts,Incorporated Places",
                 "format": "json",
             },
             timeout=15.0,
         )
         geo_resp.raise_for_status()
-        tracts = geo_resp.json()["result"]["geographies"]["Census Tracts"]
-        tract = tracts[0]
+        geographies = geo_resp.json()["result"]["geographies"]
+
+        tract = geographies["Census Tracts"][0]
         state, county, tract_code = tract["STATE"], tract["COUNTY"], tract["TRACT"]
         aland_sqmi = float(tract["AREALAND"]) / SQ_METERS_PER_SQ_MILE
 
@@ -81,8 +78,14 @@ def get_census_profile(candidate: CandidateSite) -> DemographicsResult:
 
         density = population / aland_sqmi if population is not None and aland_sqmi > 0 else None
 
-        comparison_city = _STATE_FIPS_TO_CITY.get(state)
-        city_income = _get_city_median_income(comparison_city) if comparison_city else None
+        # The candidate's own incorporated city (if any) is discovered from the
+        # same geocode call -- this is what makes the "vs city median" comparison
+        # correct for any US city, not just the ones this project has manually
+        # onboarded. A point outside any incorporated place (unincorporated
+        # county land) legitimately has no comparison and gets None, not a guess.
+        places = geographies.get("Incorporated Places") or []
+        city_income = _get_place_median_income(places[0]["STATE"], places[0]["PLACE"]) if places else None
+
         vs_city_pct = (
             (income - city_income) / city_income * 100
             if income is not None and city_income is not None

@@ -1,0 +1,18 @@
+{
+  "Austin": {
+    "display_name": "Austin, TX",
+    "ors_port": 8080,
+    "ors_container": "site-selection-ors",
+    "osm_extract": "Austin",
+    "zoning_coverage": true,
+    "onboarded_at": "2026-08-11"
+  },
+  "Dallas": {
+    "display_name": "Dallas, Dallas County, Texas, United States",
+    "ors_port": 8081,
+    "ors_container": "site-selection-ors-dallas",
+    "osm_extract": "dallas",
+    "zoning_coverage": false,
+    "onboarded_at": "2026-08-12"
+  }
+}

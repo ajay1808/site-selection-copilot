@@ -14,6 +14,7 @@ from langchain_anthropic import ChatAnthropic
 from langgraph.graph import END, StateGraph
 from pydantic import BaseModel
 
+from city_registry import default_city
 from schemas import CandidateSite, RankedReport, SiteSelectionQuery
 from synthesis import run_synthesis
 from tools.census import get_census_profile
@@ -112,8 +113,7 @@ def decide_agents(query: SiteSelectionQuery) -> AgentDecision:
 class GraphState(TypedDict):
     query_text: str
     candidates: list[CandidateSite]
-    county_fips: str
-    occupation_code: str
+    city: str
     cached_query: Optional[SiteSelectionQuery]
     cached_candidates: Optional[list[CandidateSite]]
     cached_data: Optional[list[dict]]
@@ -125,6 +125,7 @@ class GraphState(TypedDict):
     agents_skipped: dict[str, str]
     candidate_data: list[dict]
     report: Optional[RankedReport]
+    synthesis_trace: Optional[dict]
 
 
 def node_parse_query(state: GraphState) -> dict:
@@ -162,7 +163,7 @@ def node_run_subagents(state: GraphState) -> dict:
         result = {"candidate": candidate.model_dump()}
         isochrone = None
         if "get_isochrone" in called:
-            isochrone = get_isochrone(candidate, mode="drive", minutes=10)
+            isochrone = get_isochrone(candidate, mode="drive", minutes=10, city=state["city"])
             result["isochrone"] = isochrone.model_dump()
         if "get_census_profile" in called:
             result["demographics"] = get_census_profile(candidate).model_dump()
@@ -170,9 +171,7 @@ def node_run_subagents(state: GraphState) -> dict:
             catchment = isochrone.catchment_geojson if isochrone else {}
             result["competitors"] = get_poi_density(candidate, catchment, query.business_type).model_dump()
         if "get_labor_profile" in called:
-            labor = get_labor_profile(
-                candidate, county_fips=state["county_fips"], occupation_code=state["occupation_code"]
-            )
+            labor = get_labor_profile(candidate, business_type=query.business_type)
             result["labor"] = labor.model_dump()
         if "get_zoning_risk" in called:
             result["zoning"] = get_zoning_risk(candidate, candidate.address).model_dump()
@@ -215,11 +214,12 @@ def node_synthesize(state: GraphState) -> dict:
                 agents_called=state["agents_called"],
                 agents_skipped=state["agents_skipped"],
             )
+            synthesis_trace = None
         else:
-            report = run_synthesis(state["query"], state["candidate_data"])
+            report, synthesis_trace = run_synthesis(state["query"], state["candidate_data"])
             report.agents_called = state["agents_called"]
             report.agents_skipped = state["agents_skipped"]
-        return {"report": report}
+        return {"report": report, "synthesis_trace": synthesis_trace}
 
 
 def route_after_clarity(state: GraphState) -> str:
@@ -264,10 +264,19 @@ def build_graph():
 
 
 class OrchestratorResult:
-    def __init__(self, query: Optional[SiteSelectionQuery], clarification_needed: Optional[str], report: Optional[RankedReport]):
+    def __init__(
+        self,
+        query: Optional[SiteSelectionQuery],
+        clarification_needed: Optional[str],
+        report: Optional[RankedReport],
+        synthesis_trace: Optional[dict] = None,
+        candidate_data: Optional[list[dict]] = None,
+    ):
         self.query = query
         self.clarification_needed = clarification_needed
         self.report = report
+        self.synthesis_trace = synthesis_trace
+        self.candidate_data = candidate_data
 
 
 class Session:
@@ -286,15 +295,13 @@ class Session:
         self,
         query_text: str,
         candidates: list[CandidateSite],
-        county_fips: str = "48453",
-        occupation_code: str = "35-3023",
+        city: str = None,
     ) -> OrchestratorResult:
         result = self.app.invoke(
             {
                 "query_text": query_text,
                 "candidates": candidates,
-                "county_fips": county_fips,
-                "occupation_code": occupation_code,
+                "city": city or default_city(),
                 "cached_query": self.query,
                 "cached_candidates": self.candidates,
                 "cached_data": self.candidate_data,
@@ -314,7 +321,13 @@ class Session:
         self.agents_called = result["agents_called"]
         self.agents_skipped = result["agents_skipped"]
 
-        return OrchestratorResult(query=self.query, clarification_needed=None, report=result["report"])
+        return OrchestratorResult(
+            query=self.query,
+            clarification_needed=None,
+            report=result["report"],
+            synthesis_trace=result.get("synthesis_trace"),
+            candidate_data=result["candidate_data"],
+        )
 
 
 if __name__ == "__main__":
