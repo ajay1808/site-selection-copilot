@@ -65,7 +65,13 @@ An orchestrator (built with LangGraph) decides which of these five to call for a
 source .venv/bin/activate
 streamlit run app.py
 ```
-The sidebar has a **🔑 API keys & routing** panel that walks you through what's needed: links to get the three free keys (Census, BLS, Anthropic), a choice of routing mode, and a place to paste or upload credentials. Once set up: pick a city, add a few candidate addresses, ask your question. Toggle "Show agent thinking" to see the raw data each tool returned, the reallocated weights, and the citation-checker's retry history.
+The app walks you through three steps, showing which one you're on:
+
+1. **Set up access** — connect four free API keys. A window opens automatically if any are missing, with links to get each one. Saved to your `.env` so you're only asked once.
+2. **Choose sites** — either add addresses you already have in mind, or name a city and let it suggest a spread of real commercial addresses to start from.
+3. **Ask a question** — describe the business in plain English. Example questions are offered if you're not sure what to type.
+
+The sidebar holds all your inputs, labelled by what's required versus optional. Toggle **Show the working** to see the raw data each source returned, how scoring was adjusted for missing data, and the fact-checker's retry history.
 
 **Routing mode — pick one:**
 - **Public ORS API (recommended, default)** — paste a free key from [openrouteservice.org/dev](https://openrouteservice.org/dev/#/signup), works for any city worldwide immediately, no Docker needed. Free tier: 500 isochrone requests/day, confirmed live against the real API's own rate-limit headers (not just their docs, which turned out to be behind a JS-rendered dashboard). The UI shows your remaining quota once you've made a request.

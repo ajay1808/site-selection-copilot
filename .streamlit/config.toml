@@ -3,3 +3,7 @@ toolbarMode = "minimal"
 
 [theme]
 base = "dark"
+# Matches the stepper accent, so the primary CTA and "you are here" state read
+# as the same colour. Streamlit's default primary is a coral red, which looks
+# like a warning on an analysis tool.
+primaryColor = "#2E7DF7"

@@ -56,6 +56,21 @@ st.markdown(
     """
     <style>
     [data-testid="stSidebar"] { min-width: 400px; max-width: 480px; }
+
+    /* Neutral greys + a blue accent, so this reads correctly on both the
+       light and dark Streamlit themes without hardcoding either. */
+    .ssc-steps { display: flex; gap: 10px; margin: 0.25rem 0 1.25rem 0; flex-wrap: wrap; }
+    .ssc-step {
+        flex: 1 1 180px; padding: 11px 14px; border-radius: 8px;
+        border: 1px solid rgba(128,128,128,0.28); background: rgba(128,128,128,0.06);
+        line-height: 1.35;
+    }
+    .ssc-step .ssc-num { font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.65; }
+    .ssc-step .ssc-label { font-weight: 600; font-size: 0.95rem; }
+    .ssc-step .ssc-hint { font-size: 0.78rem; opacity: 0.7; }
+    .ssc-step.done { border-color: rgba(46,160,67,0.55); background: rgba(46,160,67,0.09); }
+    .ssc-step.active { border-color: #2E7DF7; background: rgba(46,125,247,0.11); }
+    .ssc-step.todo { opacity: 0.5; }
     </style>
     """,
     unsafe_allow_html=True,
@@ -119,22 +134,57 @@ def suggest_and_add(city_name: str, n: int):
     st.rerun()
 
 
+STEPS = [
+    ("Set up access", "One-time API keys"),
+    ("Choose sites", "Addresses to compare"),
+    ("Ask a question", "Get a ranked answer"),
+]
+
+
+def render_stepper(current: int):
+    """Shows where the user is in the three-step flow. `current` is 1-indexed;
+    anything before it is complete, anything after is not yet reachable."""
+    html = ['<div class="ssc-steps">']
+    for i, (label, hint) in enumerate(STEPS, start=1):
+        state = "done" if i < current else ("active" if i == current else "todo")
+        marker = "✓ Done" if state == "done" else f"Step {i}"
+        html.append(
+            f'<div class="ssc-step {state}">'
+            f'<div class="ssc-num">{marker}</div>'
+            f'<div class="ssc-label">{label}</div>'
+            f'<div class="ssc-hint">{hint}</div>'
+            f"</div>"
+        )
+    html.append("</div>")
+    st.markdown("".join(html), unsafe_allow_html=True)
+
+
 def render_about():
-    with st.expander("ℹ️ What is this?", expanded=False):
+    with st.expander("ℹ️ What is this, and how does it work?", expanded=False):
         st.markdown(
             f"""
-You ask something like *"best spot for a coffee shop, budget-conscious"* and this
-looks up real data about your candidate addresses — how easy they are to reach,
-who lives nearby, how many competitors are already there, what it would cost to
-staff the place, and how risky the zoning is — then ranks them with a plain-English
-reason for each pick. **Every number in that reason is checked against the real data
-before you see it** — if it can't be verified, it gets pulled rather than shown.
+**In one line:** you give it a few addresses, it tells you which one is the better
+place to open your business — and shows its work.
 
-Five real, live data sources power it: OpenRouteService (accessibility),
-US Census Bureau (demographics), OpenStreetMap (competitors), the Bureau of Labor
-Statistics (staffing cost), and municipal zoning data.
+**What it actually does.** For each address you give it, it looks up five things
+from live, public data sources:
 
-📂 **[View the source code & full write-up on GitHub]({GITHUB_URL})**
+| | What it checks | Source |
+|---|---|---|
+| 🚗 | How far customers can travel to reach it | OpenRouteService |
+| 🏘️ | Who lives nearby — income, age, density | US Census Bureau |
+| ☕ | How many competitors are already there | OpenStreetMap |
+| 💼 | What it would cost to staff | Bureau of Labor Statistics |
+| 📋 | Whether zoning allows your business | City zoning maps |
+
+It then ranks your addresses and writes a plain-English reason for each one.
+
+**The part that matters:** every number in those reasons is automatically checked
+against the source data before you see it. If a figure can't be verified, the
+reason gets withheld rather than shown. If a data source is unavailable for a site,
+it says so instead of guessing — and shifts its scoring onto the data it does have.
+
+📂 **[Source code and full technical write-up on GitHub]({GITHUB_URL})**
             """
         )
 
@@ -261,17 +311,21 @@ def local_key_dialog():
 
 def render_public_key_gate():
     st.title("🗺️ Site Selection Copilot")
-    st.caption("Ask a question, get a ranked, cited recommendation. Every number is checked against real data before you see it.")
+    st.caption("Compare candidate locations for a new business, using live public data.")
     render_about()
+    render_stepper(1)
 
-    st.header("🔑 Bring your own API keys to start")
+    st.subheader("Step 1 — Connect four free API keys")
     st.caption(
-        "This runs on *your* keys, not the operator's — kept in your browser session only, "
-        "never written to disk, never visible to other visitors. Closing the tab clears them."
+        "This app runs on **your** keys, not the operator's. They stay in your browser session only — "
+        "never saved to disk, never shared with other visitors, and cleared when you close the tab. "
+        "This takes about 5 minutes the first time; after that you can paste them back in seconds."
     )
 
+    st.markdown("**Where to get each one** (all free, three are instant):")
     for key in REQUIRED_KEYS:
-        st.markdown(f"**{KEY_LABELS[key]}** — {KEY_SIGNUP_LINKS[key]}")
+        st.markdown(f"- **{KEY_LABELS[key]}** — {KEY_SIGNUP_LINKS[key]}")
+    st.caption("💡 Tip: open these in new tabs, collect all four, then paste them in below.")
 
     with st.form("api_key_gate"):
         anthropic_in = st.text_input("Anthropic API key", type="password")
@@ -315,31 +369,24 @@ init_state()
 if PUBLIC_MODE and not all(st.session_state.api_keys.get(k) for k in REQUIRED_KEYS):
     render_public_key_gate()
 
-st.title("🗺️ Site Selection Copilot")
-st.caption("Ask a question, get a ranked, cited recommendation. Every number is checked against real data before you see it.")
-render_about()
-
-if not PUBLIC_MODE:
-    have_all = all(os.environ.get(v) for v in KEY_ENV_NAMES.values())
-    missing_labels = [KEY_LABELS[k] for k, v in KEY_ENV_NAMES.items() if not os.environ.get(v)]
-    status_col, button_col = st.columns([5, 1])
-    if have_all:
-        status_col.success("✅ API keys connected")
-    else:
-        status_col.warning(f"⚠️ Missing API keys: {', '.join(missing_labels)}")
-    if button_col.button("🔑 Manage API keys", use_container_width=True):
-        local_key_dialog()
-    if not have_all and not st.session_state.get("_key_dialog_auto_shown"):
-        st.session_state._key_dialog_auto_shown = True
-        local_key_dialog()
+keys_ready = (
+    all(st.session_state.api_keys.get(k) for k in REQUIRED_KEYS)
+    if PUBLIC_MODE
+    else all(os.environ.get(v) for v in KEY_ENV_NAMES.values())
+)
+sites_ready = len(st.session_state.candidates) > 0
+current_step = 1 if not keys_ready else (2 if not sites_ready else 3)
 
 with st.sidebar:
-    st.header("Query setup")
+    st.header("⚙️ Setup panel")
+    st.caption("Your inputs live here. Everything is optional except **Step 2: candidate sites**.")
+    st.divider()
 
     if PUBLIC_MODE:
-        st.success("✅ Using your session's API keys")
+        st.markdown("**🔑 API keys**")
+        st.success("Connected for this session")
         st.caption("Routing: public ORS API")
-        if st.button("🔁 Change keys"):
+        if st.button("Change keys"):
             st.session_state.api_keys = {}
             st.rerun()
         from tools.isochrone import quota_status
@@ -349,73 +396,124 @@ with st.sidebar:
         city = None  # not used in public mode -- API routing needs no city registration
         default_city_label = ""  # nothing registered to default to; the user names their city
     else:
+        st.markdown("**🔑 API keys**")
+        missing_labels = [KEY_LABELS[k] for k, v in KEY_ENV_NAMES.items() if not os.environ.get(v)]
+        if keys_ready:
+            st.success("All four connected")
+        else:
+            st.warning(f"Missing: {', '.join(missing_labels)}")
+        if st.button("Manage API keys", use_container_width=True):
+            local_key_dialog()
+        if not keys_ready and not st.session_state.get("_key_dialog_auto_shown"):
+            st.session_state._key_dialog_auto_shown = True
+            local_key_dialog()
+
+        st.divider()
+        st.markdown("**🏙️ City**")
+        st.caption("Which city's zoning and routing data to use.")
         cities = city_registry.list_cities()
-        city = st.selectbox("City", cities, index=cities.index(city_registry.default_city()) if city_registry.default_city() in cities else 0)
+        city = st.selectbox("City", cities, index=cities.index(city_registry.default_city()) if city_registry.default_city() in cities else 0, label_visibility="collapsed")
         default_city_label = city
         entry = city_registry.get_city(city)
         if entry:
             zoning_note = "✅ real zoning data" if entry.get("zoning_coverage") else "⚪ no zoning source yet"
             st.caption(f"{entry['display_name']} — {zoning_note}")
 
-        with st.expander("➕ Onboard a new city"):
+        with st.expander("➕ Add a city that isn't listed"):
+            st.caption("Downloads that city's map data and builds a local routing engine for it. Takes a few minutes, one time only.")
             new_city = st.text_input("City name", placeholder="e.g. Houston")
             if st.button("Onboard", disabled=not new_city):
                 onboard_city_ui(new_city)
                 st.rerun()
 
     st.divider()
-    st.subheader("Candidate addresses")
+    st.markdown(f"**📍 Step 2 — Candidate sites** ({len(st.session_state.candidates)} added)")
+    st.caption("**Required.** The addresses you want compared against each other. Two or more works best.")
+
     if "addr_input_key" not in st.session_state:
         st.session_state.addr_input_key = 0
     new_addr = st.text_input(
         "Add an address", placeholder="1100 Congress Ave, Austin, TX 78701",
         key=f"addr_input_{st.session_state.addr_input_key}",
     )
-    if st.button("Add", disabled=not new_addr):
+    if st.button("Add this address", disabled=not new_addr, use_container_width=True):
         geocode_and_add(new_addr)
         st.session_state.addr_input_key += 1  # forces a fresh, empty widget next render
         st.rerun()
 
-    with st.expander("📍 Suggest addresses across a city"):
-        st.caption("Real commercial addresses, spread across the city — a starting point if you don't have specific sites in mind.")
+    with st.expander("🎲 Don't have addresses? Suggest some"):
+        st.caption(
+            "Picks real commercial addresses spread across the city — useful when you're "
+            "exploring a market rather than choosing between sites you already know."
+        )
         sb_city = st.text_input("City", value=default_city_label, key="sb_suggest_city", placeholder="e.g. Austin, TX")
         sb_n = st.slider("How many", 3, 8, 5, key="sb_suggest_n")
         if st.button("Suggest addresses", key="sb_suggest_go", disabled=not sb_city, use_container_width=True):
             suggest_and_add(sb_city, sb_n)
 
+    if st.session_state.candidates:
+        st.caption("Currently comparing:")
     for i, c in enumerate(st.session_state.candidates):
         col1, col2 = st.columns([5, 1])
         col1.caption(candidate_label(c))
-        if col2.button("✕", key=f"rm_{i}"):
+        if col2.button("✕", key=f"rm_{i}", help="Remove this site"):
             st.session_state.candidates.pop(i)
             st.rerun()
 
     st.divider()
-    st.subheader("Priority weights")
-    st.caption("Optional — leave alone to let the copilot infer weights from your question.")
-    use_manual_weights = st.checkbox("Set weights manually")
-    manual_weights = {}
-    if use_manual_weights:
-        for dim, label in DIMENSION_LABELS.items():
-            manual_weights[dim] = st.slider(label, 0.0, 1.0, 0.2, 0.05)
-        total = sum(manual_weights.values()) or 1.0
-        manual_weights = {k: round(v / total, 3) for k, v in manual_weights.items()}
-        st.caption(f"normalized to sum to 1.0: {manual_weights}")
+    st.markdown("**🎚️ Fine-tuning** *(optional)*")
+    st.caption("Skip this entirely and just describe what you want in your question — the copilot works it out.")
+
+    with st.expander("Priority weights"):
+        st.caption("Force exactly how much each factor counts. Otherwise these are inferred from your question.")
+        use_manual_weights = st.checkbox("Set weights manually")
+        manual_weights = {}
+        if use_manual_weights:
+            for dim, label in DIMENSION_LABELS.items():
+                manual_weights[dim] = st.slider(label, 0.0, 1.0, 0.2, 0.05)
+            total = sum(manual_weights.values()) or 1.0
+            manual_weights = {k: round(v / total, 3) for k, v in manual_weights.items()}
+            st.caption(f"Normalized to sum to 1.0: {manual_weights}")
+
+    with st.expander("Hard constraints"):
+        st.caption("Deal-breakers. Any site that violates one gets ruled out rather than ranked lower.")
+        constraints_text = st.text_area(
+            "One per line", placeholder="needs a drive-thru\nrent under $8,000/mo", height=80,
+            label_visibility="collapsed",
+        )
 
     st.divider()
-    st.subheader("Hard constraints")
-    constraints_text = st.text_area("One per line", placeholder="needs a drive-thru\nrent under $8,000/mo", height=80)
+    st.markdown("**🔍 Display**")
+    show_thinking = st.checkbox(
+        "Show the working", value=False,
+        help="Reveals the raw data each source returned, how scoring was adjusted, and the fact-checker's retries.",
+    )
 
-    st.divider()
-    show_thinking = st.checkbox("🔍 Show agent thinking", value=False)
-
-    if st.button("🔄 Reset conversation"):
+    if st.button("🔄 Start over", use_container_width=True):
         st.session_state.session = Session()
         st.session_state.history = []
         st.rerun()
 
     st.divider()
-    st.caption(f"[📂 Source on GitHub]({GITHUB_URL})")
+    st.caption(f"[📂 Source on GitHub]({GITHUB_URL})")
+
+# ---- main panel ----
+
+st.title("🗺️ Site Selection Copilot")
+st.caption("Compare candidate locations for a new business, using live public data.")
+render_about()
+render_stepper(current_step)
+
+if current_step == 1:
+    # Local mode only -- public mode never gets here, it's gated earlier.
+    st.subheader("Step 1 — Connect your API keys")
+    st.caption(
+        "The app pulls live data from four services, each needing a free key. "
+        "Use **Manage API keys** in the sidebar (a window should have opened automatically). "
+        "Once saved to your `.env`, you won't be asked again."
+    )
+    st.info("👈 Missing: " + ", ".join(KEY_LABELS[k] for k, v in KEY_ENV_NAMES.items() if not os.environ.get(v)))
+    st.stop()
 
 # main chat area
 for role, content, extra in st.session_state.history:
@@ -427,52 +525,85 @@ for role, content, extra in st.session_state.history:
         else:
             st.write(content)
 
-if len(st.session_state.candidates) == 0:
-    st.subheader("Start with a few candidate sites")
+if current_step == 2:
+    st.subheader("Step 2 — Pick the sites you want compared")
     st.caption(
-        "This compares specific addresses against each other. Add your own in the sidebar — "
-        "or, if you're still exploring a market, start from real commercial addresses spread across the city."
+        "This tool compares specific addresses head-to-head, so it needs at least one to work with "
+        "(two or more makes the comparison useful)."
     )
-    col_city, col_n, col_go = st.columns([3, 1, 1])
-    main_city = col_city.text_input(
-        "City", value=default_city_label, key="main_suggest_city",
-        placeholder="e.g. Austin, TX", label_visibility="collapsed",
+
+    left, right = st.columns(2)
+    with left:
+        st.markdown("**I know the addresses**")
+        st.caption("Add them one at a time in the sidebar, under *Step 2 — Candidate sites*.")
+        st.caption("👈 Look for the “Add an address” box.")
+    with right:
+        st.markdown("**I'm exploring a market**")
+        st.caption("Name a city and get real commercial addresses spread across it, to start from.")
+        col_city, col_n = st.columns([3, 1])
+        main_city = col_city.text_input(
+            "City", value=default_city_label, key="main_suggest_city",
+            placeholder="e.g. Austin, TX", label_visibility="collapsed",
+        )
+        main_n = col_n.number_input("How many", 3, 8, 5, key="main_suggest_n", label_visibility="collapsed")
+        if st.button("Suggest sites for me", disabled=not main_city, use_container_width=True, type="primary"):
+            suggest_and_add(main_city, int(main_n))
+        st.caption("Real, currently-mapped commercial addresses — nothing invented.")
+    st.stop()
+
+# current_step == 3
+if not st.session_state.history:
+    st.subheader("Step 3 — Ask your question")
+    st.caption(
+        f"Comparing **{len(st.session_state.candidates)} site"
+        f"{'s' if len(st.session_state.candidates) != 1 else ''}**. "
+        "Describe the business and what matters to you, in plain English. "
+        "Mention priorities like *budget-conscious* or *foot traffic matters most* and it will weigh them accordingly."
     )
-    main_n = col_n.number_input("How many", 3, 8, 5, key="main_suggest_n", label_visibility="collapsed")
-    if col_go.button("Suggest sites", disabled=not main_city, use_container_width=True, type="primary"):
-        suggest_and_add(main_city, int(main_n))
-    st.caption("Suggestions are real, currently-mapped commercial addresses — nothing invented.")
-else:
-    prompt = st.chat_input("e.g. Best spot for a fast-casual restaurant, budget-conscious.")
-    if prompt:
-        st.session_state.history.append(("user", prompt, None))
-        with st.chat_message("user"):
-            st.write(prompt)
+    st.markdown("**Try one of these:**")
+    examples = [
+        "Best spot for a coffee shop, budget-conscious.",
+        "Where should I open a gym? Low competition matters most.",
+        "Fast-casual restaurant — I care most about foot traffic.",
+    ]
+    ex_cols = st.columns(len(examples))
+    for col, ex in zip(ex_cols, examples):
+        if col.button(ex, use_container_width=True, key=f"ex_{ex[:20]}"):
+            st.session_state.pending_prompt = ex
+            st.rerun()
+    st.caption("A first answer takes around a minute — it makes live calls to all five data sources for every site.")
 
-        query_text = prompt
-        if use_manual_weights:
-            query_text += f"\n\n[Priority weights: {json.dumps(manual_weights)}]"
-        constraints = [c.strip() for c in constraints_text.splitlines() if c.strip()]
-        if constraints:
-            query_text += f"\n\n[Hard constraints: {'; '.join(constraints)}]"
+typed = st.chat_input("Describe your business and what matters to you…")
+prompt = typed or st.session_state.pop("pending_prompt", None)
+if prompt:
+    st.session_state.history.append(("user", prompt, None))
+    with st.chat_message("user"):
+        st.write(prompt)
 
-        with st.chat_message("assistant"):
-            with st.spinner("Running the five data tools and synthesizing a ranking..."):
-                run_kwargs = {"city": city}
-                if PUBLIC_MODE:
-                    run_kwargs["api_keys"] = st.session_state.api_keys
-                result = st.session_state.session.run(query_text, st.session_state.candidates, **run_kwargs)
+    query_text = prompt
+    if use_manual_weights:
+        query_text += f"\n\n[Priority weights: {json.dumps(manual_weights)}]"
+    constraints = [c.strip() for c in constraints_text.splitlines() if c.strip()]
+    if constraints:
+        query_text += f"\n\n[Hard constraints: {'; '.join(constraints)}]"
 
-            if result.clarification_needed:
-                st.write(result.clarification_needed)
-                st.session_state.history.append(("assistant", result.clarification_needed, None))
-            else:
-                render_report(result.report)
-                extra = {
-                    "report": result.report,
-                    "candidate_data": result.candidate_data,
-                    "synthesis_trace": result.synthesis_trace,
-                }
-                if show_thinking and result.candidate_data:
-                    render_thinking(result.candidate_data, result.synthesis_trace)
-                st.session_state.history.append(("assistant", "", extra))
+    with st.chat_message("assistant"):
+        with st.spinner("Running the five data tools and synthesizing a ranking..."):
+            run_kwargs = {"city": city}
+            if PUBLIC_MODE:
+                run_kwargs["api_keys"] = st.session_state.api_keys
+            result = st.session_state.session.run(query_text, st.session_state.candidates, **run_kwargs)
+
+        if result.clarification_needed:
+            st.write(result.clarification_needed)
+            st.session_state.history.append(("assistant", result.clarification_needed, None))
+        else:
+            render_report(result.report)
+            extra = {
+                "report": result.report,
+                "candidate_data": result.candidate_data,
+                "synthesis_trace": result.synthesis_trace,
+            }
+            if show_thinking and result.candidate_data:
+                render_thinking(result.candidate_data, result.synthesis_trace)
+            st.session_state.history.append(("assistant", "", extra))
