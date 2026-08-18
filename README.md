@@ -4,6 +4,8 @@ You ask it something like *"best spot for a fast-casual restaurant near East Aus
 
 There's a web UI now (`streamlit run app.py`), and it can onboard a brand-new city on request — just tell it the name and it goes and gets the map data itself. Ask it about a city it doesn't fully know yet (say, one with no zoning data) and it adjusts its confidence honestly instead of guessing or refusing.
 
+**Don't have addresses in mind yet?** Name a city and it will suggest a starting set — real, currently-mapped commercial addresses spread across that city, each labelled with its neighborhood. Nothing is invented: the suggestions come from actual businesses mapped in OpenStreetMap, filtered to the city's real administrative boundary (a bounding box around Manhattan also covers Hoboken and Brooklyn, so a box isn't good enough), and spatially binned so you get Battery Park *and* Harlem rather than five addresses clustered downtown.
+
 ## How it works
 
 ```mermaid
@@ -132,5 +134,5 @@ manual click-through, not something automatable from here.
 - **The public ORS API's 500/day quota is shared across everyone using your key.** Fine for trying the tool out or light use; a heavily-used public deployment would need either the Docker mode (no cap, but per-city setup) or a paid ORS plan.
 - **Uploaded credentials aren't encrypted at rest.** The "save to .env" option writes plaintext to disk, same as hand-editing the file — normal for local API-key storage, but worth knowing if this ever runs somewhere multi-tenant.
 - **No memory of the past.** All the data is *live* — if you ask "where would this have opened in 2023," it can't rewind. It only knows today.
-- **It ranks candidates you give it, not the whole city.** There's no "scan all of Austin" feature yet — you tell it which addresses to consider, and it ranks those.
+- **It ranks candidates you give it, not the whole city.** The "suggest addresses" feature gives you a spread-out starting set to explore a market, but it's a sampling of mapped commercial locations — not an exhaustive search of every available storefront, and not filtered by what's actually for lease.
 - **Hard constraints are judged, not verified.** Something like "rent under $8,000/month" gets factored into the ranking by the model's judgment — none of the five tools actually return commercial rent data, so there's nothing to check that claim against.

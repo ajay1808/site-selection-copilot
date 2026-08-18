@@ -188,7 +188,7 @@ def node_run_subagents(state: GraphState) -> dict:
             labor = get_labor_profile(candidate, business_type=query.business_type, api_key=keys.get("bls"))
             result["labor"] = labor.model_dump()
         if "get_zoning_risk" in called:
-            result["zoning"] = get_zoning_risk(candidate, candidate.address).model_dump()
+            result["zoning"] = get_zoning_risk(candidate).model_dump()
 
         candidate_data.append(result)
 

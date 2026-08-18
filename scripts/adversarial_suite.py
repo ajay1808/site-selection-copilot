@@ -36,7 +36,7 @@ print("\n=== Case 2: zero zoning coverage (Houston) ===")
 from tools.zoning import get_zoning_risk
 
 houston_candidate = CandidateSite(address="1000 Main St, Houston, TX 77002", lat=29.7589, lon=-95.3677)
-zoning_result = get_zoning_risk(houston_candidate, houston_candidate.address)
+zoning_result = get_zoning_risk(houston_candidate)
 passed = zoning_result.status == "no_coverage" and zoning_result.risk_level == "unknown"
 record("zero_zoning_coverage", passed, f"status={zoning_result.status}, risk_level={zoning_result.risk_level}")
 
@@ -49,7 +49,11 @@ time.sleep(2)
 from tools.isochrone import get_isochrone
 
 austin_candidate = CandidateSite(address="1100 Congress Ave, Austin, TX 78701", lat=30.2747, lon=-97.7404)
-iso_result = get_isochrone(austin_candidate, mode="drive", minutes=10)
+# Pin to docker mode explicitly: this case tests what happens when the
+# self-hosted routing container is down. With the default now being the
+# public ORS API, stopping the container wouldn't affect the call at all
+# and the test would silently pass without exercising anything.
+iso_result = get_isochrone(austin_candidate, mode="drive", minutes=10, ors_mode="docker")
 passed = iso_result.status == "failed" and iso_result.catchment_geojson == {}
 record("ors_down", passed, f"status={iso_result.status}, catchment_geojson={iso_result.catchment_geojson!r}")
 

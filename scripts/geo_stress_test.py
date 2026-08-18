@@ -57,7 +57,7 @@ for label, candidate, county_fips in LOCATIONS:
     row["labor_status"] = labor.status
     row["labor_wage_p50"] = labor.wage_p50
 
-    zoning = get_zoning_risk(candidate, candidate.address)
+    zoning = get_zoning_risk(candidate)
     print(f"zoning: status={zoning.status} risk_level={zoning.risk_level}")
     row["zoning_status"] = zoning.status
     row["zoning_risk_level"] = zoning.risk_level

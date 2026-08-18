@@ -11,9 +11,10 @@ class SiteSelectionQuery(BaseModel):
 
 
 class CandidateSite(BaseModel):
-    address: str
+    address: str                            # kept clean -- it gets geocoded downstream
     lat: float
     lon: float
+    neighborhood: Optional[str] = None      # display label only, never part of `address`
 
 
 class IsochroneResult(BaseModel):

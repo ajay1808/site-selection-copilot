@@ -121,12 +121,21 @@ def _geocode(address: str) -> tuple[float, float] | None:
 
 
 @traced("get_zoning_risk")
-def get_zoning_risk(candidate: CandidateSite, address: str) -> ZoningResult:
+def get_zoning_risk(candidate: CandidateSite, address: str = None) -> ZoningResult:
+    """Zoning risk for the candidate's own coordinates.
+
+    Deliberately uses candidate.lat/lon rather than re-geocoding the address
+    string. The other four sub-agents all evaluate candidate.lat/lon, so
+    geocoding separately here could land on a slightly different point --
+    meaning zoning was describing a different parcel than the demographics
+    and competitor data for the same candidate. It also made this tool fail
+    outright on any address the Census geocoder didn't recognise, even when
+    the coordinates were known-good.
+
+    `address` is accepted for call-site compatibility and is unused.
+    """
     try:
-        latlon = _geocode(address)
-        if latlon is None:
-            return ZoningResult(candidate=candidate, risk_level="unknown", citation=None, status="failed")
-        lat, lon = latlon
+        lat, lon = candidate.lat, candidate.lon
 
         base_code = _query_zoning_base(lat, lon)
         if base_code is None:

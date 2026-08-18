@@ -219,8 +219,21 @@ map" API, so every other city onboarded via `onboard_city.py` gets
 
 **Exact call:** `GET .../FeatureServer/0/query` with the candidate's lon/lat as
 an `esriGeometryPoint`, `spatialRel=esriSpatialRelIntersects`, requesting the
-`ZONING_BASE` field. Address text is first geocoded to a point via the Census
-Geocoder's `onelineaddress` endpoint.
+`ZONING_BASE` field.
+
+**It uses `candidate.lat/lon` directly, and that matters.** An earlier version
+re-geocoded the candidate's *address string* here instead. That was wrong in
+two ways. First, it could land on a different point than the one every other
+sub-agent analyses — a real example: the Texas Capitol candidate at
+(30.2747, -97.7404) is genuinely `UNZ`, unzoned state land, but its address
+geocoded ~200m north onto a `CS` commercial parcel, so zoning was reporting
+"low risk, commercial" for a candidate whose demographics and competitor
+counts were computed on the Capitol grounds. Second, it failed outright on any
+address the Census geocoder didn't recognise, even when the coordinates were
+known-good — which surfaced as soon as auto-suggested addresses (§9) started
+producing valid OSM-sourced addresses like "4534 Westgate Boulevard" that the
+Census geocoder returns nothing for. Using the candidate's own coordinates
+fixes both and removes a redundant API call per candidate.
 
 **The buffer fallback (a real edge case, not hypothetical):** street-address
 geocoding often lands the point on the road centerline, which sits in the gap
@@ -372,15 +385,20 @@ tool-level behavior) for locations the system was never built for:
 |---|---|---|---|---|
 | Manhattan, NY | `failed` (no ORS graph loaded) | `ok` (real NYC data) | `ok` (real BLS data) | `no_coverage` |
 | Ithaca, NY | `failed` | `ok` | `ok` | `no_coverage` |
-| Bangalore, India | `failed` | `failed` (Census is US-only) | `failed` | `failed` (couldn't even geocode) |
-| Chennai, India | `failed` | `failed` | `failed` | `failed` |
+| Bangalore, India | `failed` | `failed` (Census is US-only) | `failed` | `no_coverage` |
+| Chennai, India | `failed` | `failed` | `failed` | `no_coverage` |
 
 Every failure here is the *correct* answer for a system that hasn't been
 onboarded for that location — no tool fabricated a plausible-looking number
-for a place it has no business answering about. Note Bangalore/Chennai's
-zoning shows `failed`, not `no_coverage` — because the geocode step itself
-came back empty for a non-US address, a genuinely different failure than
-"geocoded fine, no polygon there" (see §2.5's status semantics).
+for a place it has no business answering about.
+
+Two rows changed since this table was first recorded, both from later fixes
+rather than new failures. Manhattan/Ithaca `isochrone` now returns `ok` when
+`ORS_MODE=api`, because the public routing API covers any city without a
+locally-built graph (§2.1). And Bangalore/Chennai `zoning` moved from
+`failed` to `no_coverage`: it used to fail at a geocoding step that no longer
+exists (§2.5), and "the Austin zoning layer genuinely doesn't cover Bangalore"
+is the more accurate of the two signals anyway.
 
 ---
 
@@ -476,3 +494,58 @@ mechanism as §8.1, just sourced from the gate screen instead of the local
 skipped entirely in this mode (see the README's "Deploying it publicly"
 section for why). `ors_mode` is forced to `"api"` in the keys dict, since
 Docker isn't reachable from a managed host.
+
+## 9. Suggesting candidate addresses (`candidate_generator.py`)
+
+The system ranks addresses you give it, which is a cold start if you're
+exploring a market rather than choosing between known sites. `generate_candidates(city, n)`
+produces a starting set. Every address it returns is a real, currently-mapped
+commercial location — the module has no code path that invents a street number.
+
+**Pipeline, and why each step is there:**
+
+1. **Resolve the city** (Nominatim search, `polygon_geojson=1`) → bounding box
+   *and* the real administrative boundary polygon.
+2. **Fetch commercial POIs** (Overpass) inside the bbox: `shop=*` plus
+   restaurants, cafés, fast food, bars, pharmacies and banks. These mark where
+   retail demonstrably exists today, which is the honest proxy for "a
+   storefront could plausibly go here" — as opposed to scattering points on a
+   grid, which would happily land in a reservoir.
+3. **Clip to the real boundary.** A bbox around Manhattan also contains
+   Hoboken, Brooklyn and part of New Jersey; suggesting those for "Manhattan"
+   is just wrong. Points are tested against the boundary polygon with shapely.
+   This was found by testing, not anticipated — the first Manhattan run
+   returned Hoboken, Teaneck and Brooklyn addresses.
+4. **Grid-bin for spread.** POI density is heavily centre-weighted, so random
+   sampling returns five downtown addresses. The bbox is divided into a grid
+   and one POI is taken per cell. Within a cell, a POI carrying complete
+   `addr:*` tags beats one nearer the cell centre — a precise address is worth
+   more than a few hundred metres of positioning.
+5. **Build each address by merging two sources.** The POI's own OSM `addr:*`
+   tags are the more precise street line (it's the storefront's mapped
+   address, not whatever building a coordinate lands nearest), but they're
+   frequently missing city/state/postcode. Those gaps are filled from a
+   Nominatim reverse geocode, which also supplies the neighborhood name. An
+   address missing its city geocodes badly downstream, so this merge is worth
+   the extra call.
+
+**Rate limiting:** Nominatim's usage policy caps clients at 1 request/second,
+so calls are throttled to a 1.1s floor with a descriptive User-Agent. That
+paces the whole operation: one search plus one reverse call per suggestion,
+so five suggestions take roughly 7–9 seconds end to end.
+
+**Bbox clamping:** a city bbox can span 40km+ (NYC). Overpass queries over a
+box that large with a broad tag filter are slow and unkind to a shared public
+instance, so the search area is clamped to a 25km span around the centre.
+For a very large city this means suggestions come from the central 25km rather
+than the full administrative area — a deliberate, documented trade-off.
+
+**Failure behaviour:** an unresolvable city, no mapped POIs, or a failed
+reverse geocode each yield *fewer* suggestions, or none, with a message saying
+so. The list is never padded with plausible-looking invented addresses, which
+would defeat the entire premise of the tool.
+
+**The `neighborhood` field:** stored on `CandidateSite` separately, never
+concatenated into `address`. `address` is consumed by geocoders downstream and
+appending " (Alphabet City)" to it would degrade those lookups. The UI joins
+the two only at display time.

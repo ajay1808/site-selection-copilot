@@ -18,6 +18,7 @@ import sys
 import streamlit as st
 from dotenv import load_dotenv
 
+import candidate_generator
 import city_registry
 import credentials
 from orchestrator import Session
@@ -89,6 +90,33 @@ def geocode_and_add(address: str):
         return
     lat, lon = latlon
     st.session_state.candidates.append(CandidateSite(address=address, lat=lat, lon=lon))
+
+
+def candidate_label(c: CandidateSite) -> str:
+    return f"{c.address} ({c.neighborhood})" if c.neighborhood else c.address
+
+
+def suggest_and_add(city_name: str, n: int):
+    """Fills the candidate list with real commercial addresses spread across
+    the named city. Adds nothing if the lookup comes back empty."""
+    with st.spinner(f"Finding commercial addresses across {city_name}…"):
+        try:
+            found = candidate_generator.generate_candidates(city_name, n=n)
+        except Exception as exc:
+            st.error(f"Couldn't reach the map data service — try again in a moment. ({type(exc).__name__})")
+            return
+
+    if not found:
+        st.warning(
+            f"No mapped commercial addresses found for “{city_name}”. "
+            "Check the spelling, or try a more specific name like “Austin, TX”."
+        )
+        return
+
+    existing = {c.address for c in st.session_state.candidates}
+    added = [c for c in found if c.address not in existing]
+    st.session_state.candidates.extend(added)
+    st.rerun()
 
 
 def render_about():
@@ -319,9 +347,11 @@ with st.sidebar:
         if q and q.get("remaining") is not None:
             st.caption(f"Your ORS quota: {q['remaining']} / {q['limit']} requests left today")
         city = None  # not used in public mode -- API routing needs no city registration
+        default_city_label = ""  # nothing registered to default to; the user names their city
     else:
         cities = city_registry.list_cities()
         city = st.selectbox("City", cities, index=cities.index(city_registry.default_city()) if city_registry.default_city() in cities else 0)
+        default_city_label = city
         entry = city_registry.get_city(city)
         if entry:
             zoning_note = "✅ real zoning data" if entry.get("zoning_coverage") else "⚪ no zoning source yet"
@@ -346,9 +376,16 @@ with st.sidebar:
         st.session_state.addr_input_key += 1  # forces a fresh, empty widget next render
         st.rerun()
 
+    with st.expander("📍 Suggest addresses across a city"):
+        st.caption("Real commercial addresses, spread across the city — a starting point if you don't have specific sites in mind.")
+        sb_city = st.text_input("City", value=default_city_label, key="sb_suggest_city", placeholder="e.g. Austin, TX")
+        sb_n = st.slider("How many", 3, 8, 5, key="sb_suggest_n")
+        if st.button("Suggest addresses", key="sb_suggest_go", disabled=not sb_city, use_container_width=True):
+            suggest_and_add(sb_city, sb_n)
+
     for i, c in enumerate(st.session_state.candidates):
         col1, col2 = st.columns([5, 1])
-        col1.caption(c.address)
+        col1.caption(candidate_label(c))
         if col2.button("✕", key=f"rm_{i}"):
             st.session_state.candidates.pop(i)
             st.rerun()
@@ -391,7 +428,20 @@ for role, content, extra in st.session_state.history:
             st.write(content)
 
 if len(st.session_state.candidates) == 0:
-    st.info("Add at least one candidate address in the sidebar to get started.")
+    st.subheader("Start with a few candidate sites")
+    st.caption(
+        "This compares specific addresses against each other. Add your own in the sidebar — "
+        "or, if you're still exploring a market, start from real commercial addresses spread across the city."
+    )
+    col_city, col_n, col_go = st.columns([3, 1, 1])
+    main_city = col_city.text_input(
+        "City", value=default_city_label, key="main_suggest_city",
+        placeholder="e.g. Austin, TX", label_visibility="collapsed",
+    )
+    main_n = col_n.number_input("How many", 3, 8, 5, key="main_suggest_n", label_visibility="collapsed")
+    if col_go.button("Suggest sites", disabled=not main_city, use_container_width=True, type="primary"):
+        suggest_and_add(main_city, int(main_n))
+    st.caption("Suggestions are real, currently-mapped commercial addresses — nothing invented.")
 else:
     prompt = st.chat_input("e.g. Best spot for a fast-casual restaurant, budget-conscious.")
     if prompt:

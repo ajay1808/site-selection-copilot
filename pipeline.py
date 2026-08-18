@@ -47,7 +47,7 @@ def run_pipeline(
         demographics = get_census_profile(candidate)
         competitors = get_poi_density(candidate, isochrone.catchment_geojson, category)
         labor = get_labor_profile(candidate, business_type=category)
-        zoning = get_zoning_risk(candidate, candidate.address)
+        zoning = get_zoning_risk(candidate)
         reports.append(CandidateReport(candidate, isochrone, demographics, competitors, labor, zoning))
     return reports
 
