@@ -26,6 +26,8 @@ from tools.zoning import _geocode
 
 load_dotenv()
 
+GITHUB_URL = "https://github.com/ajay1808/site-selection-copilot"
+
 
 def _public_mode_enabled() -> bool:
     if os.environ.get("PUBLIC_MODE", "false").lower() == "true":
@@ -39,8 +41,24 @@ def _public_mode_enabled() -> bool:
 PUBLIC_MODE = _public_mode_enabled()
 REQUIRED_KEYS = ["anthropic", "census", "bls", "ors"]
 KEY_ENV_NAMES = {"anthropic": "ANTHROPIC_API_KEY", "census": "CENSUS_API_KEY", "bls": "BLS_API_KEY", "ors": "ORS_API_KEY"}
+KEY_LABELS = {"anthropic": "Anthropic", "census": "Census", "bls": "BLS", "ors": "ORS"}
+KEY_SIGNUP_LINKS = {
+    "anthropic": "[console.anthropic.com](https://console.anthropic.com) — needs billing set up",
+    "census": "[api.census.gov/data/key_signup.html](https://api.census.gov/data/key_signup.html) — instant & free",
+    "bls": "[bls.gov/developers](https://www.bls.gov/developers/) — instant & free",
+    "ors": "[openrouteservice.org/dev](https://openrouteservice.org/dev/#/signup) — instant & free, 500 requests/day",
+}
 
 st.set_page_config(page_title="Site Selection Copilot", page_icon="🗺️", layout="wide")
+
+st.markdown(
+    """
+    <style>
+    [data-testid="stSidebar"] { min-width: 400px; max-width: 480px; }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 DIMENSION_LABELS = {
     "access": "Access",
@@ -71,6 +89,26 @@ def geocode_and_add(address: str):
         return
     lat, lon = latlon
     st.session_state.candidates.append(CandidateSite(address=address, lat=lat, lon=lon))
+
+
+def render_about():
+    with st.expander("ℹ️ What is this?", expanded=False):
+        st.markdown(
+            f"""
+You ask something like *"best spot for a coffee shop, budget-conscious"* and this
+looks up real data about your candidate addresses — how easy they are to reach,
+who lives nearby, how many competitors are already there, what it would cost to
+staff the place, and how risky the zoning is — then ranks them with a plain-English
+reason for each pick. **Every number in that reason is checked against the real data
+before you see it** — if it can't be verified, it gets pulled rather than shown.
+
+Five real, live data sources power it: OpenRouteService (accessibility),
+US Census Bureau (demographics), OpenStreetMap (competitors), the Bureau of Labor
+Statistics (staffing cost), and municipal zoning data.
+
+📂 **[View the source code & full write-up on GitHub]({GITHUB_URL})**
+            """
+        )
 
 
 def render_thinking(candidate_data: list[dict], synthesis_trace: dict | None):
@@ -144,28 +182,75 @@ def onboard_city_ui(city_name: str):
             status.update(label=f"Onboarding '{city_name}' failed", state="error")
 
 
+@st.dialog("🔑 Connect your API keys")
+def local_key_dialog():
+    st.caption(
+        "Local keys live in your `.env` file. Paste one here to set it for this session, "
+        "or check the box to also save it to `.env` so you don't have to re-enter it next time."
+    )
+    have = {k: bool(os.environ.get(v)) for k, v in KEY_ENV_NAMES.items()}
+
+    for key in REQUIRED_KEYS:
+        label = KEY_LABELS[key]
+        status_icon = "✅" if have[key] else "⬜"
+        st.markdown(f"**{status_icon} {label}** — {KEY_SIGNUP_LINKS[key]}")
+        col1, col2 = st.columns([4, 1])
+        value = col1.text_input(
+            f"{label} API key", value=os.environ.get(KEY_ENV_NAMES[key], ""),
+            type="password", key=f"dlg_{key}", label_visibility="collapsed",
+        )
+        if col2.button("Save", key=f"dlg_save_{key}", disabled=not value, use_container_width=True):
+            credentials.apply_credentials({KEY_ENV_NAMES[key]: value}, persist=True)
+            st.rerun()
+
+    st.divider()
+    st.markdown("**Routing mode** for accessibility scoring:")
+    routing_mode = st.radio(
+        "Routing mode", ["Public ORS API (no setup)", "Self-hosted Docker (no daily limit)"],
+        index=0 if os.environ.get("ORS_MODE", "docker") == "api" else 1, label_visibility="collapsed",
+    )
+    new_mode = "api" if routing_mode.startswith("Public") else "docker"
+    if new_mode != os.environ.get("ORS_MODE", "docker"):
+        os.environ["ORS_MODE"] = new_mode
+        st.rerun()
+    if new_mode == "docker":
+        st.caption("Onboard cities for Docker mode in the sidebar under “➕ Onboard a new city”.")
+
+    st.divider()
+    st.caption("Or upload a `.env` / `.json` file with any of the four keys:")
+    uploaded = st.file_uploader("credentials file", type=["env", "json", "txt"], label_visibility="collapsed")
+    persist = st.checkbox("Also save uploaded keys to .env", value=True)
+    if uploaded is not None:
+        parsed = credentials.parse_credentials_file(uploaded.name, uploaded.getvalue())
+        if parsed:
+            st.caption(f"Found: {', '.join(parsed.keys())}")
+            if st.button("Apply uploaded credentials"):
+                credentials.apply_credentials(parsed, persist=persist)
+                st.rerun()
+        else:
+            st.warning("No recognized keys found in that file.")
+
+
 def render_public_key_gate():
     st.title("🗺️ Site Selection Copilot")
     st.caption("Ask a question, get a ranked, cited recommendation. Every number is checked against real data before you see it.")
+    render_about()
+
     st.header("🔑 Bring your own API keys to start")
     st.caption(
         "This runs on *your* keys, not the operator's — kept in your browser session only, "
         "never written to disk, never visible to other visitors. Closing the tab clears them."
     )
 
-    st.markdown(
-        "- **Anthropic** (powers the ranking) — [console.anthropic.com](https://console.anthropic.com), needs billing set up\n"
-        "- **Census** (demographics) — [api.census.gov/data/key_signup.html](https://api.census.gov/data/key_signup.html), instant & free\n"
-        "- **BLS** (labor stats) — [bls.gov/developers](https://www.bls.gov/developers/), instant & free\n"
-        "- **ORS** (routing/accessibility) — [openrouteservice.org/dev](https://openrouteservice.org/dev/#/signup), instant & free, 500 requests/day"
-    )
+    for key in REQUIRED_KEYS:
+        st.markdown(f"**{KEY_LABELS[key]}** — {KEY_SIGNUP_LINKS[key]}")
 
     with st.form("api_key_gate"):
         anthropic_in = st.text_input("Anthropic API key", type="password")
         census_in = st.text_input("Census API key", type="password")
         bls_in = st.text_input("BLS API key", type="password")
         ors_in = st.text_input("ORS API key", type="password")
-        submitted = st.form_submit_button("Start")
+        submitted = st.form_submit_button("Start", use_container_width=True, type="primary")
 
     st.divider()
     st.caption("Or upload a `.env` / `.json` file with the same four keys:")
@@ -185,7 +270,7 @@ def render_public_key_gate():
     }
 
     if submitted or uploaded is not None:
-        missing = [k for k in REQUIRED_KEYS if not candidate_keys.get(k)]
+        missing = [KEY_LABELS[k] for k in REQUIRED_KEYS if not candidate_keys.get(k)]
         if missing:
             st.error(f"Still need: {', '.join(missing)}")
         else:
@@ -204,12 +289,28 @@ if PUBLIC_MODE and not all(st.session_state.api_keys.get(k) for k in REQUIRED_KE
 
 st.title("🗺️ Site Selection Copilot")
 st.caption("Ask a question, get a ranked, cited recommendation. Every number is checked against real data before you see it.")
+render_about()
+
+if not PUBLIC_MODE:
+    have_all = all(os.environ.get(v) for v in KEY_ENV_NAMES.values())
+    missing_labels = [KEY_LABELS[k] for k, v in KEY_ENV_NAMES.items() if not os.environ.get(v)]
+    status_col, button_col = st.columns([5, 1])
+    if have_all:
+        status_col.success("✅ API keys connected")
+    else:
+        status_col.warning(f"⚠️ Missing API keys: {', '.join(missing_labels)}")
+    if button_col.button("🔑 Manage API keys", use_container_width=True):
+        local_key_dialog()
+    if not have_all and not st.session_state.get("_key_dialog_auto_shown"):
+        st.session_state._key_dialog_auto_shown = True
+        local_key_dialog()
 
 with st.sidebar:
-    st.header("Setup")
+    st.header("Query setup")
 
     if PUBLIC_MODE:
-        st.success("✅ Using your session's API keys (routing: public ORS API)")
+        st.success("✅ Using your session's API keys")
+        st.caption("Routing: public ORS API")
         if st.button("🔁 Change keys"):
             st.session_state.api_keys = {}
             st.rerun()
@@ -219,71 +320,6 @@ with st.sidebar:
             st.caption(f"Your ORS quota: {q['remaining']} / {q['limit']} requests left today")
         city = None  # not used in public mode -- API routing needs no city registration
     else:
-        with st.expander("🔑 API keys & routing", expanded=not os.environ.get("ANTHROPIC_API_KEY")):
-            st.caption(
-                "Three keys make this run: Census, BLS, and Anthropic (all free to get). "
-                "A fourth, ORS, is optional — see routing mode below."
-            )
-            have = {k: bool(os.environ.get(k)) for k in ["CENSUS_API_KEY", "BLS_API_KEY", "ANTHROPIC_API_KEY", "ORS_API_KEY"]}
-            status_line = "  ".join(f"{'✅' if v else '⬜'} {k.replace('_API_KEY','')}" for k, v in have.items())
-            st.markdown(status_line)
-
-            st.markdown("**Step 1 — get free keys** (skip any you already have):")
-            st.markdown(
-                "- Census: [api.census.gov/data/key_signup.html](https://api.census.gov/data/key_signup.html) — instant\n"
-                "- BLS: [bls.gov/developers](https://www.bls.gov/developers/) — instant\n"
-                "- Anthropic: [console.anthropic.com](https://console.anthropic.com) — needs billing set up"
-            )
-
-            st.markdown("**Step 2 — routing (`get_isochrone`)**, pick one:")
-            routing_mode = st.radio(
-                "Routing mode",
-                ["Public ORS API (recommended)", "Self-hosted Docker"],
-                index=0 if os.environ.get("ORS_MODE", "docker") == "api" else 1,
-                label_visibility="collapsed",
-            )
-            if routing_mode.startswith("Public"):
-                st.caption(
-                    "No install needed, works for any city worldwide immediately. "
-                    "Free tier: 500 isochrone requests/day (confirmed live against "
-                    "the real API, not just docs)."
-                )
-                ors_key_input = st.text_input(
-                    "ORS API key", value=os.environ.get("ORS_API_KEY", ""), type="password",
-                    placeholder="get one free at openrouteservice.org/dev",
-                )
-                if st.button("Use this key", disabled=not ors_key_input):
-                    os.environ["ORS_API_KEY"] = ors_key_input
-                    os.environ["ORS_MODE"] = "api"
-                    st.rerun()
-                from tools.isochrone import quota_status
-                q = quota_status.get(os.environ.get("ORS_API_KEY", ""))
-                if q and q.get("remaining") is not None:
-                    st.caption(f"Quota: {q['remaining']} / {q['limit']} requests left today")
-            else:
-                st.caption(
-                    "No daily limit, but needs Docker installed and a one-time download+build per "
-                    "city (a few minutes each). Onboard cities in the section below."
-                )
-                if st.button("Switch to Docker mode"):
-                    os.environ["ORS_MODE"] = "docker"
-                    st.rerun()
-
-            st.markdown("**Or, upload credentials directly:**")
-            uploaded = st.file_uploader("`.env` or `.json` file", type=["env", "json", "txt"], label_visibility="collapsed")
-            persist = st.checkbox("Save to .env for future runs (plaintext on disk)", value=False)
-            if uploaded is not None:
-                parsed = credentials.parse_credentials_file(uploaded.name, uploaded.getvalue())
-                if parsed:
-                    st.caption(f"Found: {', '.join(parsed.keys())}")
-                    if st.button("Apply uploaded credentials"):
-                        credentials.apply_credentials(parsed, persist=persist)
-                        st.success("Applied for this session" + (" and saved to .env" if persist else ""))
-                        st.rerun()
-                else:
-                    st.warning("No recognized keys found in that file.")
-
-        st.divider()
         cities = city_registry.list_cities()
         city = st.selectbox("City", cities, index=cities.index(city_registry.default_city()) if city_registry.default_city() in cities else 0)
         entry = city_registry.get_city(city)
@@ -340,6 +376,9 @@ with st.sidebar:
         st.session_state.session = Session()
         st.session_state.history = []
         st.rerun()
+
+    st.divider()
+    st.caption(f"[📂 Source on GitHub]({GITHUB_URL})")
 
 # main chat area
 for role, content, extra in st.session_state.history:
