@@ -86,12 +86,45 @@ python chat.py          # interactive REPL
 python orchestrator.py  # a scripted two-turn demo
 ```
 
+## Deploying it publicly
+
+The app can run as a genuinely public, hosted site — not GitHub Pages (that's
+static-only, no Python backend), but [Streamlit Community Cloud](https://streamlit.io/cloud)
+works, free, deploying straight from this GitHub repo.
+
+**The model: visitors bring their own keys.** Set one flag, `PUBLIC_MODE=true`
+(as an environment variable or a Streamlit Cloud secret), and the app changes
+shape:
+- Every visitor sees a key-entry screen before anything else — their own
+  Anthropic, Census, BLS, and ORS keys, typed in like a password or uploaded
+  as a `.env`/`.json` file. Nothing is shared across visitors and nothing
+  touches the server's disk or `os.environ` — keys live only in that
+  browser's `st.session_state` for that session, verified by literally
+  clearing all four keys from the environment and confirming the app still
+  ran correctly using only the values passed in through this path.
+- Docker routing mode is hidden entirely — public hosting has no Docker
+  access anyway, so it's public-ORS-API-only there.
+- Nothing needs to survive a restart — no city onboarding, no "save to disk"
+  option. A managed host's filesystem resets on redeploy regardless.
+
+**Why bring-your-own-key, not the operator's key:** the alternative — embedding
+one key that every visitor shares — means the operator pays every visitor's
+Anthropic bill and everyone splits one 500/day ORS quota. BYOK sidesteps both;
+the tradeoff is visitors need their own free keys before they can use it,
+which the gate screen walks them through.
+
+**To actually deploy:** push this repo to GitHub (already done), go to
+[share.streamlit.io](https://share.streamlit.io), connect it to this repo,
+set the main file to `app.py`, and add `PUBLIC_MODE = "true"` under the app's
+Secrets. That last step needs your own Streamlit/GitHub login, so it's a
+manual click-through, not something automatable from here.
+
 ## Where things stand
 
 - **Phase 0–1** (the five data tools + the orchestrator that ties them together): done, tested against real Austin addresses.
 - **Phase 2** (does it actually work well?): done. Ran it against 8 real, recent Austin restaurant/retail openings and checked whether it would've picked the real winning spot — it did, 7 out of 8 times. Also stress-tested it against places it was never built for (Manhattan, Ithaca, Bangalore, Chennai) to make sure it fails *honestly* rather than making things up — it does.
 - **Phase 3** (multi-city, a real UI, more capable agents): done. See `EXPLANATION.md` for the full detail on what each agent does and how coverage actually spreads across cities.
-- **Phase 4** (fork-and-run with zero setup): in progress. Docker is now optional — the public ORS API removes it entirely for routing, so a fresh clone genuinely needs just a Python environment and (free, quick) API keys, which the UI now walks you through. Still open: an actual one-command bootstrap script, and Docker-mode is still the only path with no daily quota.
+- **Phase 4** (fork-and-run with zero setup, and a real public deployment): in progress. `PUBLIC_MODE` makes this genuinely hostable — no operator secrets, no Docker, no persistence needed, each visitor brings their own keys. Still open: an actual one-command *local* bootstrap script (today's local setup is "make a venv, pip install, get keys" — a few manual steps, not one command), and the site isn't actually deployed anywhere yet — the code is ready, the click-through deploy to Streamlit Cloud is still a manual step for whoever owns the GitHub account.
 
 ## Honest limitations
 

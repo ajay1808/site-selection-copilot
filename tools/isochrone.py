@@ -25,8 +25,9 @@ ORS_PUBLIC_API_URL = "https://api.openrouteservice.org"
 _PUBLIC_API_PER_MINUTE_LIMIT = 20
 
 # Populated from the real x-ratelimit-* response headers after every public
-# API call, so the UI can show actual remaining quota rather than a guess.
-quota_status: dict = {"limit": None, "remaining": None, "reset_epoch": None}
+# API call, keyed by API key so concurrent users (e.g. on a shared public
+# deployment, each with their own key) never see each other's quota.
+quota_status: dict[str, dict] = {}
 
 _recent_request_times: list[float] = []
 
@@ -39,10 +40,6 @@ def _throttle_public_api():
         if sleep_for > 0:
             time.sleep(sleep_for)
     _recent_request_times.append(time.monotonic())
-
-
-def _ors_mode() -> str:
-    return os.environ.get("ORS_MODE", "docker").lower()
 
 
 def _docker_base_url(city: str) -> str | None:
@@ -74,7 +71,9 @@ def _failed(candidate, mode, minutes) -> IsochroneResult:
 
 
 @traced("get_isochrone")
-def get_isochrone(candidate: CandidateSite, mode: str, minutes: int, city: str = None) -> IsochroneResult:
+def get_isochrone(
+    candidate: CandidateSite, mode: str, minutes: int, city: str = None, ors_mode: str = None, api_key: str = None
+) -> IsochroneResult:
     city = city or default_city()
     profile = _PROFILE_BY_MODE[mode]
     payload = {
@@ -83,10 +82,10 @@ def get_isochrone(candidate: CandidateSite, mode: str, minutes: int, city: str =
         "range_type": "time",
     }
 
-    ors_mode = _ors_mode()
+    ors_mode = (ors_mode or os.environ.get("ORS_MODE", "docker")).lower()
 
     if ors_mode == "api":
-        api_key = os.environ.get("ORS_API_KEY")
+        api_key = api_key or os.environ.get("ORS_API_KEY")
         if not api_key:
             return _failed(candidate, mode, minutes)
 
@@ -98,9 +97,11 @@ def get_isochrone(candidate: CandidateSite, mode: str, minutes: int, city: str =
                 headers={"Authorization": api_key},
                 timeout=30.0,
             )
-            quota_status["limit"] = resp.headers.get("x-ratelimit-limit", quota_status["limit"])
-            quota_status["remaining"] = resp.headers.get("x-ratelimit-remaining", quota_status["remaining"])
-            quota_status["reset_epoch"] = resp.headers.get("x-ratelimit-reset", quota_status["reset_epoch"])
+            quota_status[api_key] = {
+                "limit": resp.headers.get("x-ratelimit-limit"),
+                "remaining": resp.headers.get("x-ratelimit-remaining"),
+                "reset_epoch": resp.headers.get("x-ratelimit-reset"),
+            }
             resp.raise_for_status()
             data = resp.json()
             feature = data["features"][0]

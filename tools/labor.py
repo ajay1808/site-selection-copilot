@@ -8,7 +8,6 @@ from tracing_setup import traced
 
 load_dotenv()
 
-BLS_API_KEY = os.environ.get("BLS_API_KEY")
 BLS_URL = "https://api.bls.gov/publicAPI/v2/timeseries/data/"
 GEOCODER_URL = "https://geocoding.geo.census.gov/geocoder/geographies/coordinates"
 
@@ -79,8 +78,11 @@ def _geocode_labor_geography(candidate: CandidateSite) -> tuple[str, str] | None
 
 
 @traced("get_labor_profile")
-def get_labor_profile(candidate: CandidateSite, business_type: str = "", occupation_code: str | None = None) -> LaborResult:
+def get_labor_profile(
+    candidate: CandidateSite, business_type: str = "", occupation_code: str | None = None, api_key: str = None
+) -> LaborResult:
     occupation_code = occupation_code or infer_occupation_code(business_type)
+    api_key = api_key or os.environ.get("BLS_API_KEY")
 
     try:
         geo = _geocode_labor_geography(candidate)
@@ -98,7 +100,7 @@ def get_labor_profile(candidate: CandidateSite, business_type: str = "", occupat
 
         resp = httpx.post(
             BLS_URL,
-            json={"seriesid": list(series_ids.values()), "registrationkey": BLS_API_KEY, "latest": True},
+            json={"seriesid": list(series_ids.values()), "registrationkey": api_key, "latest": True},
             timeout=20.0,
         )
         resp.raise_for_status()

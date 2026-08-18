@@ -438,3 +438,41 @@ The routing-mode switch in the same panel just sets `ORS_MODE` in the
 environment (`"api"` or `"docker"`) — `tools/isochrone.py` reads it fresh on
 every call, so switching modes mid-session takes effect on the next query,
 no restart needed.
+
+### 8.1 Why every tool function takes an optional `api_key` parameter
+
+`os.environ` is process-global, not per-visitor. Streamlit deploys one app as
+one long-lived Python process; every concurrent browser session talks to that
+*same* process. `st.session_state` is correctly isolated per session, but a
+plain `os.environ["X"] = ...` write is not — one visitor pasting a key could
+leak into another visitor's requests on a shared public deployment. That's a
+real bug class, not a hypothetical one, so every tool that needs a secret
+(`get_census_profile`, `get_labor_profile`, `get_isochrone`) and every LLM
+call (`parse_query`, `decide_agents`, `check_clarity`, `run_synthesis`) now
+accepts an explicit `api_key` argument, falling back to `os.environ` only
+when the caller doesn't supply one (which is exactly what happens in local/
+CLI use, where there's only one user and no isolation to worry about).
+
+`orchestrator.py`'s `GraphState` carries an `api_keys` dict through the whole
+LangGraph run — since that state is a plain local object scoped to one
+`.invoke()` call, threading keys through it is inherently request-scoped,
+with no global mutation anywhere in the path. This was verified directly:
+running the full pipeline with `CENSUS_API_KEY`, `BLS_API_KEY`,
+`ANTHROPIC_API_KEY`, and `ORS_API_KEY` all deleted from the environment (and
+`load_dotenv` stubbed out so nothing could silently reload them), passing all
+four only through `Session.run(..., api_keys={...})` — the full pipeline
+still produced a correct, real ranking, proving no hidden environment
+fallback exists in that path.
+
+### 8.2 Public mode (`PUBLIC_MODE=true`)
+
+Flips the app into bring-your-own-key mode: `app.py`'s `render_public_key_gate()`
+blocks all other rendering (`st.stop()`) until a visitor supplies all four
+keys, stored in `st.session_state.api_keys` and *never* written to
+`os.environ` or disk in this mode. Every `session.run(...)` call in public
+mode explicitly passes `api_keys=st.session_state.api_keys` -- the same
+mechanism as §8.1, just sourced from the gate screen instead of the local
+`.env`. The city selector, Docker onboarding, and file-persistence options are
+skipped entirely in this mode (see the README's "Deploying it publicly"
+section for why). `ors_mode` is forced to `"api"` in the keys dict, since
+Docker isn't reachable from a managed host.

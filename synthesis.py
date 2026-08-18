@@ -55,12 +55,12 @@ _MODEL = "claude-sonnet-4-5"
 
 
 @traced("synthesis_agent")
-def run_synthesis(query: SiteSelectionQuery, candidate_data: list[dict]) -> tuple[RankedReport, dict]:
+def run_synthesis(query: SiteSelectionQuery, candidate_data: list[dict], api_key: str = None) -> tuple[RankedReport, dict]:
     """Returns (report, trace) -- trace records the reallocated weights per
     candidate and the citation-validator retry history, so a "view the
     thinking" UI has something real to show instead of just the final text.
     """
-    llm = ChatAnthropic(model=_MODEL, temperature=0, api_key=os.environ["ANTHROPIC_API_KEY"])
+    llm = ChatAnthropic(model=_MODEL, temperature=0, api_key=api_key or os.environ["ANTHROPIC_API_KEY"])
     structured_llm = llm.with_structured_output(RankedReport)
 
     enriched_data = []

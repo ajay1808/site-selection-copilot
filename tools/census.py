@@ -8,7 +8,6 @@ from tracing_setup import traced
 
 load_dotenv()
 
-CENSUS_API_KEY = os.environ.get("CENSUS_API_KEY")
 ACS_YEAR = "2023"
 SQ_METERS_PER_SQ_MILE = 2_589_988.11
 
@@ -23,15 +22,16 @@ def _clean(value) -> float | None:
     return None if num == _CENSUS_MISSING else num
 
 
-def _get_place_median_income(state: str, place: str) -> float | None:
+def _get_place_median_income(state: str, place: str, api_key: str) -> float | None:
     """ACS median household income for a Census "place" (an incorporated
     city/town), discovered dynamically per-candidate -- no hardcoded city
-    list. Works for any US city; results are cached by (state, place)."""
+    list. Works for any US city; results are cached by (state, place) since
+    this is public reference data, not user-specific."""
     key = (state, place)
     if key not in _city_median_income_cache:
         resp = httpx.get(
             f"https://api.census.gov/data/{ACS_YEAR}/acs/acs5",
-            params={"get": "B19013_001E", "for": f"place:{place}", "in": f"state:{state}", "key": CENSUS_API_KEY},
+            params={"get": "B19013_001E", "for": f"place:{place}", "in": f"state:{state}", "key": api_key},
             timeout=15.0,
         )
         resp.raise_for_status()
@@ -41,7 +41,8 @@ def _get_place_median_income(state: str, place: str) -> float | None:
 
 
 @traced("get_census_profile")
-def get_census_profile(candidate: CandidateSite) -> DemographicsResult:
+def get_census_profile(candidate: CandidateSite, api_key: str = None) -> DemographicsResult:
+    api_key = api_key or os.environ.get("CENSUS_API_KEY")
     try:
         geo_resp = httpx.get(
             "https://geocoding.geo.census.gov/geocoder/geographies/coordinates",
@@ -68,7 +69,7 @@ def get_census_profile(candidate: CandidateSite) -> DemographicsResult:
                 "get": "B19013_001E,B01002_001E,B01003_001E",
                 "for": f"tract:{tract_code}",
                 "in": f"state:{state}+county:{county}",
-                "key": CENSUS_API_KEY,
+                "key": api_key,
             },
             timeout=15.0,
         )
@@ -84,7 +85,7 @@ def get_census_profile(candidate: CandidateSite) -> DemographicsResult:
         # onboarded. A point outside any incorporated place (unincorporated
         # county land) legitimately has no comparison and gets None, not a guess.
         places = geographies.get("Incorporated Places") or []
-        city_income = _get_place_median_income(places[0]["STATE"], places[0]["PLACE"]) if places else None
+        city_income = _get_place_median_income(places[0]["STATE"], places[0]["PLACE"], api_key) if places else None
 
         vs_city_pct = (
             (income - city_income) / city_income * 100

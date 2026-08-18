@@ -59,8 +59,8 @@ class ClarityCheck(BaseModel):
     clarifying_question: Optional[str] = None
 
 
-def check_clarity(query: SiteSelectionQuery) -> ClarityCheck:
-    llm = ChatAnthropic(model=_MODEL, temperature=0, api_key=os.environ["ANTHROPIC_API_KEY"])
+def check_clarity(query: SiteSelectionQuery, anthropic_key: str = None) -> ClarityCheck:
+    llm = ChatAnthropic(model=_MODEL, temperature=0, api_key=anthropic_key or os.environ["ANTHROPIC_API_KEY"])
     structured = llm.with_structured_output(ClarityCheck)
     return structured.invoke(
         [
@@ -78,8 +78,10 @@ def check_clarity(query: SiteSelectionQuery) -> ClarityCheck:
     )
 
 
-def parse_query(query_text: str, previous_query: Optional[SiteSelectionQuery] = None) -> SiteSelectionQuery:
-    llm = ChatAnthropic(model=_MODEL, temperature=0, api_key=os.environ["ANTHROPIC_API_KEY"])
+def parse_query(
+    query_text: str, previous_query: Optional[SiteSelectionQuery] = None, anthropic_key: str = None
+) -> SiteSelectionQuery:
+    llm = ChatAnthropic(model=_MODEL, temperature=0, api_key=anthropic_key or os.environ["ANTHROPIC_API_KEY"])
     structured = llm.with_structured_output(SiteSelectionQuery)
 
     system = (
@@ -99,8 +101,8 @@ def parse_query(query_text: str, previous_query: Optional[SiteSelectionQuery] = 
     return structured.invoke([("system", system), ("user", query_text)])
 
 
-def decide_agents(query: SiteSelectionQuery) -> AgentDecision:
-    llm = ChatAnthropic(model=_MODEL, temperature=0, api_key=os.environ["ANTHROPIC_API_KEY"])
+def decide_agents(query: SiteSelectionQuery, anthropic_key: str = None) -> AgentDecision:
+    llm = ChatAnthropic(model=_MODEL, temperature=0, api_key=anthropic_key or os.environ["ANTHROPIC_API_KEY"])
     structured = llm.with_structured_output(AgentDecision)
     return structured.invoke(
         [
@@ -114,6 +116,7 @@ class GraphState(TypedDict):
     query_text: str
     candidates: list[CandidateSite]
     city: str
+    api_keys: dict
     cached_query: Optional[SiteSelectionQuery]
     cached_candidates: Optional[list[CandidateSite]]
     cached_data: Optional[list[dict]]
@@ -130,12 +133,18 @@ class GraphState(TypedDict):
 
 def node_parse_query(state: GraphState) -> dict:
     with tracer.start_as_current_span("orchestrator.parse_query"):
-        return {"query": parse_query(state["query_text"], previous_query=state.get("cached_query"))}
+        anthropic_key = (state.get("api_keys") or {}).get("anthropic")
+        return {
+            "query": parse_query(
+                state["query_text"], previous_query=state.get("cached_query"), anthropic_key=anthropic_key
+            )
+        }
 
 
 def node_check_clarity(state: GraphState) -> dict:
     with tracer.start_as_current_span("orchestrator.check_clarity") as span:
-        check = check_clarity(state["query"])
+        anthropic_key = (state.get("api_keys") or {}).get("anthropic")
+        check = check_clarity(state["query"], anthropic_key=anthropic_key)
         span.set_attribute("is_clear", check.is_clear)
         return {"clarification_needed": None if check.is_clear else check.clarifying_question}
 
@@ -146,7 +155,8 @@ def node_end_clarification(state: GraphState) -> dict:
 
 def node_decide_agents(state: GraphState) -> dict:
     with tracer.start_as_current_span("orchestrator.decide_agents") as span:
-        decision = decide_agents(state["query"])
+        anthropic_key = (state.get("api_keys") or {}).get("anthropic")
+        decision = decide_agents(state["query"], anthropic_key=anthropic_key)
         span.set_attribute("agents_called", ",".join(decision.agents_called))
         return {"agents_called": decision.agents_called, "agents_skipped": decision.agents_skipped}
 
@@ -154,6 +164,7 @@ def node_decide_agents(state: GraphState) -> dict:
 def node_run_subagents(state: GraphState) -> dict:
     query = state["query"]
     called = state["agents_called"]
+    keys = state.get("api_keys") or {}
     candidate_data = []
 
     for i, candidate in enumerate(state["candidates"]):
@@ -163,15 +174,18 @@ def node_run_subagents(state: GraphState) -> dict:
         result = {"candidate": candidate.model_dump()}
         isochrone = None
         if "get_isochrone" in called:
-            isochrone = get_isochrone(candidate, mode="drive", minutes=10, city=state["city"])
+            isochrone = get_isochrone(
+                candidate, mode="drive", minutes=10, city=state["city"],
+                ors_mode=keys.get("ors_mode"), api_key=keys.get("ors"),
+            )
             result["isochrone"] = isochrone.model_dump()
         if "get_census_profile" in called:
-            result["demographics"] = get_census_profile(candidate).model_dump()
+            result["demographics"] = get_census_profile(candidate, api_key=keys.get("census")).model_dump()
         if "get_poi_density" in called:
             catchment = isochrone.catchment_geojson if isochrone else {}
             result["competitors"] = get_poi_density(candidate, catchment, query.business_type).model_dump()
         if "get_labor_profile" in called:
-            labor = get_labor_profile(candidate, business_type=query.business_type)
+            labor = get_labor_profile(candidate, business_type=query.business_type, api_key=keys.get("bls"))
             result["labor"] = labor.model_dump()
         if "get_zoning_risk" in called:
             result["zoning"] = get_zoning_risk(candidate, candidate.address).model_dump()
@@ -216,7 +230,8 @@ def node_synthesize(state: GraphState) -> dict:
             )
             synthesis_trace = None
         else:
-            report, synthesis_trace = run_synthesis(state["query"], state["candidate_data"])
+            anthropic_key = (state.get("api_keys") or {}).get("anthropic")
+            report, synthesis_trace = run_synthesis(state["query"], state["candidate_data"], api_key=anthropic_key)
             report.agents_called = state["agents_called"]
             report.agents_skipped = state["agents_skipped"]
         return {"report": report, "synthesis_trace": synthesis_trace}
@@ -296,12 +311,14 @@ class Session:
         query_text: str,
         candidates: list[CandidateSite],
         city: str = None,
+        api_keys: dict = None,
     ) -> OrchestratorResult:
         result = self.app.invoke(
             {
                 "query_text": query_text,
                 "candidates": candidates,
                 "city": city or default_city(),
+                "api_keys": api_keys or {},
                 "cached_query": self.query,
                 "cached_candidates": self.candidates,
                 "cached_data": self.candidate_data,
