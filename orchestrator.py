@@ -238,7 +238,13 @@ def node_synthesize(state: GraphState) -> dict:
             synthesis_trace = None
         else:
             anthropic_key = (state.get("api_keys") or {}).get("anthropic")
-            report, synthesis_trace = run_synthesis(state["query"], state["candidate_data"], api_key=anthropic_key)
+            report, synthesis_trace = run_synthesis(
+                state["query"], state["candidate_data"], api_key=anthropic_key,
+                # The parsed query drops anything with no matching weight
+                # dimension, so a stated budget priority is invisible by the
+                # time it gets here -- synthesis needs the user's own words.
+                raw_query_text=state.get("query_text", ""),
+            )
             report.agents_called = state["agents_called"]
             report.agents_skipped = state["agents_skipped"]
         return {"report": report, "synthesis_trace": synthesis_trace}

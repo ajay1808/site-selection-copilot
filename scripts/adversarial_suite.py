@@ -3,6 +3,7 @@ real against the live system (including actually stopping the ORS container
 for the down-service case) rather than mocking the behavior being tested.
 """
 
+import os
 import subprocess
 import sys
 import time
@@ -41,21 +42,39 @@ passed = zoning_result.status == "no_coverage" and zoning_result.risk_level == "
 record("zero_zoning_coverage", passed, f"status={zoning_result.status}, risk_level={zoning_result.risk_level}")
 
 
-# --- Case 3: ORS instance down -> isochrone status='failed', never fabricate a catchment ---
-print("\n=== Case 3: ORS instance down ===")
+# --- Case 3: routing unavailable -> recover if possible, fail honestly if not ---
+# Two behaviours matter here, and they pull in opposite directions, so both are
+# checked. Losing the local container shouldn't sink an analysis when a public
+# API key is sitting right there (a user landing in docker mode with Docker not
+# running took out accessibility on every candidate at once). But when routing
+# is genuinely unavailable everywhere, it must say so rather than invent a
+# catchment.
+print("\n=== Case 3: routing unavailable ===")
 subprocess.run(["docker", "stop", "site-selection-ors"], cwd=Path(__file__).resolve().parent.parent, capture_output=True)
 time.sleep(2)
 
 from tools.isochrone import get_isochrone
 
 austin_candidate = CandidateSite(address="1100 Congress Ave, Austin, TX 78701", lat=30.2747, lon=-97.7404)
-# Pin to docker mode explicitly: this case tests what happens when the
-# self-hosted routing container is down. With the default now being the
-# public ORS API, stopping the container wouldn't affect the call at all
-# and the test would silently pass without exercising anything.
-iso_result = get_isochrone(austin_candidate, mode="drive", minutes=10, ors_mode="docker")
-passed = iso_result.status == "failed" and iso_result.catchment_geojson == {}
-record("ors_down", passed, f"status={iso_result.status}, catchment_geojson={iso_result.catchment_geojson!r}")
+
+# 3a -- local container down, public API key available: should recover and say so.
+recovered = get_isochrone(austin_candidate, mode="drive", minutes=10, ors_mode="docker")
+passed_a = (
+    recovered.status == "ok"
+    and bool(recovered.catchment_geojson)
+    and "public OpenRouteService API" in (recovered.failure_reason or "")
+)
+record("routing_falls_back_to_api", passed_a, f"status={recovered.status}, note={recovered.failure_reason!r}")
+
+# 3b -- nothing left to fall back to: must fail, with an empty catchment.
+_saved_key = os.environ.pop("ORS_API_KEY", None)
+try:
+    stranded = get_isochrone(austin_candidate, mode="drive", minutes=10, ors_mode="docker", api_key="")
+    passed_b = stranded.status == "failed" and stranded.catchment_geojson == {}
+    record("routing_fails_honestly", passed_b, f"status={stranded.status}, reason={stranded.failure_reason!r}")
+finally:
+    if _saved_key is not None:
+        os.environ["ORS_API_KEY"] = _saved_key
 
 print("Restarting ORS container...")
 subprocess.run(["docker", "start", "site-selection-ors"], cwd=Path(__file__).resolve().parent.parent, capture_output=True)

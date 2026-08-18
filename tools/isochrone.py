@@ -104,6 +104,7 @@ def get_isochrone(
     }
 
     ors_mode = (ors_mode or os.environ.get("ORS_MODE", "docker")).lower()
+    fallback_note = None
 
     if ors_mode == "api":
         api_key = api_key or os.environ.get("ORS_API_KEY")
@@ -144,25 +145,53 @@ def get_isochrone(
             return _failed(candidate, mode, minutes, "Routing service returned no catchment for this point.")
     else:
         base_url = _docker_base_url(city)
+        docker_problem = None
+        feature = None
+
         if base_url is None:
-            return _failed(
-                candidate, mode, minutes,
-                f"'{city}' has no local routing engine. Onboard it, or switch to the public ORS API.",
-            )
-        try:
-            resp = _post_with_retry(f"{base_url}/v2/isochrones/{profile}", payload)
-            resp.raise_for_status()
-            feature = resp.json()["features"][0]
-        except httpx.HTTPError as exc:
-            return _failed(
-                candidate, mode, minutes,
-                f"Local routing container for '{city}' is not responding ({exc}).",
-            )
-        except (KeyError, IndexError):
-            return _failed(
-                candidate, mode, minutes,
-                f"Point is outside the map area loaded for '{city}'.",
-            )
+            docker_problem = f"'{city}' has no local routing engine"
+        else:
+            try:
+                resp = _post_with_retry(f"{base_url}/v2/isochrones/{profile}", payload)
+                resp.raise_for_status()
+                feature = resp.json()["features"][0]
+            except httpx.HTTPError:
+                docker_problem = f"the local routing container for '{city}' isn't responding"
+            except (KeyError, IndexError):
+                docker_problem = f"the point is outside the map area loaded for '{city}'"
+
+        if feature is None:
+            # Docker mode is easy to end up in accidentally (it's a click in the
+            # settings dialog) and silently stops working whenever Docker isn't
+            # running -- which took out accessibility scoring for every candidate
+            # at once. If a public API key is available, use it rather than
+            # failing the whole analysis, and say that's what happened.
+            fallback_key = api_key or os.environ.get("ORS_API_KEY")
+            if not fallback_key:
+                return _failed(
+                    candidate, mode, minutes,
+                    f"Routing unavailable: {docker_problem}, and no OpenRouteService API key is set to fall back to.",
+                )
+            _throttle_public_api()
+            try:
+                resp = _post_with_retry(
+                    f"{ORS_PUBLIC_API_URL}/v2/isochrones/{profile}",
+                    payload,
+                    headers={"Authorization": fallback_key},
+                )
+                quota_status[fallback_key] = {
+                    "limit": resp.headers.get("x-ratelimit-limit"),
+                    "remaining": resp.headers.get("x-ratelimit-remaining"),
+                    "reset_epoch": resp.headers.get("x-ratelimit-reset"),
+                }
+                resp.raise_for_status()
+                feature = resp.json()["features"][0]
+                fallback_note = f"Note: {docker_problem}, so this used the public OpenRouteService API instead."
+            except (httpx.HTTPError, KeyError, IndexError) as exc:
+                return _failed(
+                    candidate, mode, minutes,
+                    f"Routing unavailable: {docker_problem}, and the public API fallback also failed ({exc}).",
+                )
 
     area_sqmi = _catchment_area_sqmi(feature["geometry"], candidate.lat)
     # Phase 0 placeholder: normalizes reachable area against a nominal 50-sqmi
@@ -178,4 +207,5 @@ def get_isochrone(
         mode=mode,
         minutes=minutes,
         status="ok",
+        failure_reason=fallback_note,  # succeeded, but say so if it took the fallback path
     )

@@ -436,9 +436,19 @@ Collected in one place, rather than scattered as caveats:
   density, so treat the rate as indicative rather than exact.
 - **Zoning coverage is manual, per-city, and currently just Austin.** See §2.5
   and the multi-city section of the README.
-- **Hard constraints are judged, not verified.** None of the 5 tools return
-  commercial rent/lease data, so "rent under $8,000/mo" is taken on the
-  model's judgment during synthesis, not checked against a real listing.
+- **Occupancy cost is not measured at all, and the system now says so.** None
+  of the 5 tools return commercial rent or lease rates, and `priority_weights`
+  has no cost dimension for a budget priority to land in. Unhandled, this
+  failed badly in practice: asked for "a coffee shop, budget-conscious", the
+  parser produced generic default weights, dropped the budget signal entirely,
+  and the model — reaching for the nearest proxy — read high median household
+  income as favourable and ranked Austin's *wealthiest* enclave first. Exactly
+  backwards for the user's actual constraint. `synthesis.py` now detects cost
+  intent from the user's own words, tells the model it cannot evaluate
+  affordability and must not treat affluence as favourable or substitute wages
+  for rent, and appends the affordability gap to every candidate in code rather
+  than trusting the model to remember. "Rent under $8,000/mo" as a hard
+  constraint is still judgment, not verification, for the same reason.
 - **No historical data.** Every source is live/current-day. The Recall@3 eval
   (§6) measures "does today's data support the historical decision," not "what
   would the system have said before the decision was made" — a real, stated
