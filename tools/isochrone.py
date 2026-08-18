@@ -59,7 +59,7 @@ def _catchment_area_sqmi(polygon_geojson: dict, center_lat: float) -> float:
     return poly.area * miles_per_deg_lat * miles_per_deg_lon
 
 
-def _failed(candidate, mode, minutes) -> IsochroneResult:
+def _failed(candidate, mode, minutes, reason: str = None) -> IsochroneResult:
     return IsochroneResult(
         candidate=candidate,
         catchment_geojson={},
@@ -67,7 +67,28 @@ def _failed(candidate, mode, minutes) -> IsochroneResult:
         mode=mode,
         minutes=minutes,
         status="failed",
+        failure_reason=reason,
     )
+
+
+def _post_with_retry(url: str, payload: dict, headers: dict = None, attempts: int = 3):
+    """Routing is a single point of failure for two sub-agents (this one and,
+    downstream, competitor density), so a transient blip shouldn't sink a whole
+    candidate. Retries on timeouts, 5xx and 429 with backoff; returns the
+    response, or raises the last error for the caller to record."""
+    backoffs = [1.0, 3.0]
+    last_error = None
+    for attempt in range(attempts):
+        try:
+            resp = httpx.post(url, json=payload, headers=headers or {}, timeout=30.0)
+            if resp.status_code < 500 and resp.status_code != 429:
+                return resp
+            last_error = f"HTTP {resp.status_code}"
+        except httpx.HTTPError as exc:
+            last_error = f"{type(exc).__name__}"
+        if attempt < len(backoffs):
+            time.sleep(backoffs[attempt])
+    raise httpx.HTTPError(last_error or "request failed after retries")
 
 
 @traced("get_isochrone")
@@ -87,37 +108,61 @@ def get_isochrone(
     if ors_mode == "api":
         api_key = api_key or os.environ.get("ORS_API_KEY")
         if not api_key:
-            return _failed(candidate, mode, minutes)
+            return _failed(candidate, mode, minutes, "No OpenRouteService API key configured.")
 
         _throttle_public_api()
         try:
-            resp = httpx.post(
+            resp = _post_with_retry(
                 f"{ORS_PUBLIC_API_URL}/v2/isochrones/{profile}",
-                json=payload,
+                payload,
                 headers={"Authorization": api_key},
-                timeout=30.0,
             )
             quota_status[api_key] = {
                 "limit": resp.headers.get("x-ratelimit-limit"),
                 "remaining": resp.headers.get("x-ratelimit-remaining"),
                 "reset_epoch": resp.headers.get("x-ratelimit-reset"),
             }
+            # ORS uses 403 ("Access to this API has been disallowed") for a bad
+            # or revoked key, and 429 once the quota is spent -- verified
+            # against the live API. Conflating them sends users to fix the
+            # wrong problem.
+            if resp.status_code == 403:
+                return _failed(
+                    candidate, mode, minutes,
+                    "OpenRouteService rejected the API key. Check it's correct and still active.",
+                )
+            if resp.status_code == 429:
+                return _failed(
+                    candidate, mode, minutes,
+                    "OpenRouteService rate limit hit — the free plan allows 500 isochrone requests/day.",
+                )
             resp.raise_for_status()
-            data = resp.json()
-            feature = data["features"][0]
-        except (httpx.HTTPError, KeyError, IndexError):
-            return _failed(candidate, mode, minutes)
+            feature = resp.json()["features"][0]
+        except httpx.HTTPError as exc:
+            return _failed(candidate, mode, minutes, f"Routing service unreachable after retries ({exc}).")
+        except (KeyError, IndexError):
+            return _failed(candidate, mode, minutes, "Routing service returned no catchment for this point.")
     else:
         base_url = _docker_base_url(city)
         if base_url is None:
-            return _failed(candidate, mode, minutes)
+            return _failed(
+                candidate, mode, minutes,
+                f"'{city}' has no local routing engine. Onboard it, or switch to the public ORS API.",
+            )
         try:
-            resp = httpx.post(f"{base_url}/v2/isochrones/{profile}", json=payload, timeout=30.0)
+            resp = _post_with_retry(f"{base_url}/v2/isochrones/{profile}", payload)
             resp.raise_for_status()
-            data = resp.json()
-            feature = data["features"][0]
-        except (httpx.HTTPError, KeyError, IndexError):
-            return _failed(candidate, mode, minutes)
+            feature = resp.json()["features"][0]
+        except httpx.HTTPError as exc:
+            return _failed(
+                candidate, mode, minutes,
+                f"Local routing container for '{city}' is not responding ({exc}).",
+            )
+        except (KeyError, IndexError):
+            return _failed(
+                candidate, mode, minutes,
+                f"Point is outside the map area loaded for '{city}'.",
+            )
 
     area_sqmi = _catchment_area_sqmi(feature["geometry"], candidate.lat)
     # Phase 0 placeholder: normalizes reachable area against a nominal 50-sqmi

@@ -73,23 +73,27 @@ for i in range(20):
 print("\n=== Case 4: all five agents fail simultaneously ===")
 
 
-def failing_isochrone(candidate, mode, minutes):
+# These stubs only need to return a failed result, so they take *args/**kwargs
+# rather than mirroring each tool's exact signature. An earlier version pinned
+# the real parameter lists, which meant every tool signature change silently
+# broke this guardrail test with a TypeError instead of exercising it.
+def failing_isochrone(candidate, mode="drive", minutes=10, *args, **kwargs):
     return IsochroneResult(candidate=candidate, catchment_geojson={}, population_weighted_access_score=0.0, mode=mode, minutes=minutes, status="failed")
 
 
-def failing_census(candidate, city="Austin"):
+def failing_census(candidate, *args, **kwargs):
     return DemographicsResult(candidate=candidate, median_household_income=None, median_age=None, population_density_per_sqmi=None, vs_city_median_income_pct=None, status="failed")
 
 
-def failing_poi(candidate, catchment_geojson, category):
+def failing_poi(candidate, *args, **kwargs):
     return CompetitorResult(candidate=candidate, same_category_count_in_catchment=None, saturation_score=None, nearest_three_distances_miles=[], status="failed")
 
 
-def failing_labor(candidate, county_fips, occupation_code):
-    return LaborResult(candidate=candidate, county_fips=county_fips, relevant_occupation_code=occupation_code, wage_p25=None, wage_p50=None, wage_p75=None, unemployment_rate_pct=None, status="failed")
+def failing_labor(candidate, *args, **kwargs):
+    return LaborResult(candidate=candidate, county_fips="", relevant_occupation_code="", wage_p25=None, wage_p50=None, wage_p75=None, unemployment_rate_pct=None, status="failed")
 
 
-def failing_zoning(candidate, address):
+def failing_zoning(candidate, *args, **kwargs):
     return ZoningResult(candidate=candidate, risk_level="unknown", citation=None, status="failed")
 
 

@@ -38,6 +38,13 @@ def _haversine_miles(lat1: float, lon1: float, lat2: float, lon2: float) -> floa
     return 2 * r_miles * math.asin(math.sqrt(a))
 
 
+def _catchment_area_sqmi(polygon_geojson: dict, center_lat: float) -> float:
+    poly = shape(polygon_geojson)
+    miles_per_deg_lat = 69.0
+    miles_per_deg_lon = 69.0 * math.cos(math.radians(center_lat))
+    return poly.area * miles_per_deg_lat * miles_per_deg_lon
+
+
 def _search_radius_miles(candidate: CandidateSite, catchment_geometry: dict) -> float:
     poly = shape(catchment_geometry)
     max_dist = max(
@@ -81,8 +88,20 @@ def _query_overpass(candidate: CandidateSite, radius_miles: float, filters: list
     return points
 
 
+# Used when no drive-time catchment is available. A 3-mile circle is a
+# reasonable stand-in for a 10-minute urban drive -- less precise than a real
+# isochrone, but far better than reporting "competitors unknown" just because
+# the routing service happened to be down.
+_FALLBACK_RADIUS_MILES = 3.0
+
+
 @traced("get_poi_density")
-def get_poi_density(candidate: CandidateSite, catchment_geojson: dict, category: str) -> CompetitorResult:
+def get_poi_density(
+    candidate: CandidateSite,
+    catchment_geojson: dict,
+    category: str,
+    population_density_per_sqmi: float = None,
+) -> CompetitorResult:
     filters = _CATEGORY_OSM_FILTERS.get(category.lower())
     if filters is None:
         return CompetitorResult(
@@ -91,33 +110,68 @@ def get_poi_density(candidate: CandidateSite, catchment_geojson: dict, category:
             saturation_score=None,
             nearest_three_distances_miles=[],
             status="failed",
+            failure_reason=(
+                f"'{category}' isn't in the category→OpenStreetMap tag map, so competitors can't be "
+                "identified without guessing which tag to search."
+            ),
         )
 
+    # Prefer the real drive-time catchment; fall back to a radius so a routing
+    # failure costs one signal instead of two.
+    catchment_poly = None
+    geometry = (catchment_geojson or {}).get("geometry")
+    if geometry:
+        try:
+            catchment_poly = shape(geometry)
+            radius_miles = _search_radius_miles(candidate, geometry)
+            basis = "drive-time catchment"
+        except (KeyError, ValueError, AttributeError):
+            catchment_poly = None
+    if catchment_poly is None:
+        radius_miles = _FALLBACK_RADIUS_MILES
+        basis = f"{_FALLBACK_RADIUS_MILES:g}-mile radius (drive-time catchment unavailable)"
+
     try:
-        radius_miles = _search_radius_miles(candidate, catchment_geojson["geometry"])
         points = _query_overpass(candidate, radius_miles, filters)
-    except (httpx.HTTPError, KeyError, ValueError):
+    except (httpx.HTTPError, KeyError, ValueError) as exc:
         return CompetitorResult(
             candidate=candidate,
             same_category_count_in_catchment=None,
             saturation_score=None,
             nearest_three_distances_miles=[],
             status="failed",
+            failure_reason=f"OpenStreetMap competitor lookup failed ({type(exc).__name__}).",
         )
 
-    catchment_poly = shape(catchment_geojson["geometry"])
-    in_catchment = sum(1 for lat, lon in points if catchment_poly.contains(Point(lon, lat)))
+    if catchment_poly is not None:
+        count = sum(1 for lat, lon in points if catchment_poly.contains(Point(lon, lat)))
+        area_sqmi = _catchment_area_sqmi(geometry, candidate.lat)
+    else:
+        count = sum(
+            1 for lat, lon in points
+            if _haversine_miles(candidate.lat, candidate.lon, lat, lon) <= radius_miles
+        )
+        area_sqmi = math.pi * radius_miles ** 2
 
     distances = sorted(_haversine_miles(candidate.lat, candidate.lon, lat, lon) for lat, lon in points)
     nearest_three = [round(d, 2) for d in distances[:3]]
 
-    # Phase 0: saturation needs a population estimate for the catchment, which
-    # this tool doesn't receive (see get_census_profile's population_density_per_sqmi).
-    # Wire that cross-reference in the Phase 1 orchestrator rather than guessing here.
+    # Competitors per 10k residents. Needs a population estimate for the search
+    # area, which the caller supplies from census tract density -- the two
+    # halves live in different sub-agents, so the orchestrator joins them.
+    saturation = None
+    if population_density_per_sqmi and area_sqmi > 0:
+        population = population_density_per_sqmi * area_sqmi
+        if population > 0:
+            saturation = round(count / (population / 10_000), 2)
+
     return CompetitorResult(
         candidate=candidate,
-        same_category_count_in_catchment=in_catchment,
-        saturation_score=None,
+        same_category_count_in_catchment=count,
+        saturation_score=saturation,
         nearest_three_distances_miles=nearest_three,
-        status="degraded",
+        catchment_basis=basis,
+        # "ok" only when both the count and the saturation rate are real; a
+        # count without a denominator is still useful, just not the full picture.
+        status="ok" if saturation is not None else "degraded",
     )

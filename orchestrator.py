@@ -179,11 +179,18 @@ def node_run_subagents(state: GraphState) -> dict:
                 ors_mode=keys.get("ors_mode"), api_key=keys.get("ors"),
             )
             result["isochrone"] = isochrone.model_dump()
+        demographics = None
         if "get_census_profile" in called:
-            result["demographics"] = get_census_profile(candidate, api_key=keys.get("census")).model_dump()
+            demographics = get_census_profile(candidate, api_key=keys.get("census"))
+            result["demographics"] = demographics.model_dump()
         if "get_poi_density" in called:
             catchment = isochrone.catchment_geojson if isochrone else {}
-            result["competitors"] = get_poi_density(candidate, catchment, query.business_type).model_dump()
+            # Saturation (competitors per 10k residents) needs a population
+            # estimate, which only the census agent has -- joined here.
+            density = demographics.population_density_per_sqmi if demographics else None
+            result["competitors"] = get_poi_density(
+                candidate, catchment, query.business_type, population_density_per_sqmi=density
+            ).model_dump()
         if "get_labor_profile" in called:
             labor = get_labor_profile(candidate, business_type=query.business_type, api_key=keys.get("bls"))
             result["labor"] = labor.model_dump()

@@ -70,7 +70,14 @@ def run_synthesis(query: SiteSelectionQuery, candidate_data: list[dict], api_key
         reallocation_trace[entry["candidate"]["address"]] = adjusted
         enriched_data.append({**entry, "adjusted_priority_weights": adjusted})
 
-    source_by_address = {c["candidate"]["address"]: c for c in enriched_data}
+    # Validate against the union of every candidate's data, not just the one
+    # being described. A good rationale compares candidates ("density of 5501.8
+    # versus Westlake's 816.5") and the model was legitimately handed all of
+    # that data -- scoping the check to a single candidate flagged those
+    # comparative figures as fabricated and withheld the best-written
+    # rationales. The guarantee that matters is unchanged: every number must
+    # come from real upstream data rather than being invented.
+    all_sources = {"candidates": enriched_data, "query": query.model_dump()}
     user_payload = {"query": query.model_dump(), "candidate_data": enriched_data}
 
     trace = {"reallocated_weights": reallocation_trace, "citation_retries": []}
@@ -86,8 +93,7 @@ def run_synthesis(query: SiteSelectionQuery, candidate_data: list[dict], api_key
 
         problems = []
         for rc in report.top_candidates:
-            source = source_by_address.get(rc.candidate.address, {})
-            ok, unsupported = validate_rationale(rc.rationale, source)
+            ok, unsupported = validate_rationale(rc.rationale, all_sources)
             if not ok:
                 problems.append((rc.candidate.address, unsupported))
 
@@ -106,8 +112,7 @@ def run_synthesis(query: SiteSelectionQuery, candidate_data: list[dict], api_key
 
     # Retries exhausted -- degrade honestly rather than ship an unverified rationale.
     for rc in report.top_candidates:
-        source = source_by_address.get(rc.candidate.address, {})
-        ok, _ = validate_rationale(rc.rationale, source)
+        ok, _ = validate_rationale(rc.rationale, all_sources)
         if not ok:
             rc.rationale = (
                 "Rationale withheld: automated citation check could not verify all figures "

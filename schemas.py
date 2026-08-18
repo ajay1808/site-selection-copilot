@@ -24,6 +24,7 @@ class IsochroneResult(BaseModel):
     mode: Literal["drive", "walk"]
     minutes: int
     status: Literal["ok", "degraded", "failed"]
+    failure_reason: Optional[str] = None
 
 
 class DemographicsResult(BaseModel):
@@ -33,6 +34,7 @@ class DemographicsResult(BaseModel):
     population_density_per_sqmi: Optional[float]
     vs_city_median_income_pct: Optional[float]
     status: Literal["ok", "failed"]
+    failure_reason: Optional[str] = None
 
 
 class CompetitorResult(BaseModel):
@@ -41,6 +43,8 @@ class CompetitorResult(BaseModel):
     saturation_score: Optional[float]       # competitors per 10k residents
     nearest_three_distances_miles: list[float]
     status: Literal["ok", "degraded", "failed"]
+    catchment_basis: Optional[str] = None
+    failure_reason: Optional[str] = None
 
 
 class LaborResult(BaseModel):
@@ -52,6 +56,7 @@ class LaborResult(BaseModel):
     wage_p75: Optional[float]
     unemployment_rate_pct: Optional[float]
     status: Literal["ok", "failed"]
+    failure_reason: Optional[str] = None
 
 
 class ZoningResult(BaseModel):
@@ -59,6 +64,7 @@ class ZoningResult(BaseModel):
     risk_level: Literal["low", "medium", "high", "unknown"]
     citation: Optional[str]                 # zoning code section, if found
     status: Literal["ok", "no_coverage", "failed"]
+    failure_reason: Optional[str] = None
 
 
 class RankedCandidate(BaseModel):

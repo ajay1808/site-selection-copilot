@@ -207,6 +207,10 @@ def render_thinking(candidate_data: list[dict], synthesis_trace: dict | None):
                     status = result.get("status", "?")
                     icon = {"ok": "✅", "failed": "❌", "no_coverage": "⚪", "degraded": "🟡"}.get(status, "?")
                     st.markdown(f"**{icon} {key}** — `{status}`")
+                    if result.get("failure_reason"):
+                        st.caption(f"↳ {result['failure_reason']}")
+                    if result.get("catchment_basis"):
+                        st.caption(f"↳ measured over: {result['catchment_basis']}")
                     st.json({k: v for k, v in result.items() if k != "candidate"})
 
     if retries:

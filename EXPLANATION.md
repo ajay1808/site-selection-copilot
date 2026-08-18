@@ -145,21 +145,30 @@ e.g. "coffee shop" → `amenity=cafe` OR `shop=coffee`; "fast-casual restaurant"
 → `amenity=restaurant` OR `amenity=fast_food`. An unmapped category returns
 `status: "failed"` rather than guessing a tag.
 
-**Search radius:** computed from the *actual* isochrone catchment polygon
-(candidate → farthest point on the catchment boundary, +1 mile buffer to catch
-competitors just outside it) — not a fixed radius. This means `get_poi_density`
-depends on `get_isochrone` having already run for that candidate; if isochrone
-failed, there's no catchment to search and this tool fails too (a real,
-intentional coupling, not a bug — see the geo-stress-test findings for what
-this looks like against out-of-coverage cities).
+**Search radius:** when the isochrone succeeded, it's computed from the *actual*
+catchment polygon (candidate → farthest point on the boundary, +1 mile buffer to
+catch competitors just outside it) rather than a fixed distance, and competitors
+are counted by true point-in-polygon containment. When it didn't, see the
+fallback below.
 
-**What it does *not* compute:** `saturation_score` (competitors per 10k
-residents) is always `None`. Doing this correctly needs a population estimate
-for the catchment, which this tool doesn't receive as input — that's a Phase 2
-placeholder still open (see §7). Because of this, `status` is `"degraded"`
-rather than `"ok"` even when the count and nearest-three data are good, which
-is also why the weight-reallocation logic (§4) treats "competition" as
-partially unavailable more often than it strictly needs to.
+**Saturation is computed by joining two agents.** `saturation_score`
+(competitors per 10k residents) needs a population estimate for the search
+area, which lives in a different sub-agent. The orchestrator supplies it:
+census tract population density × the search area in square miles gives an
+estimated catchment population, and the competitor count over that (per 10k)
+gives the rate. `status` is `"ok"` when both the count and the rate are real,
+`"degraded"` when only the count is. Previously this was *always* `None` and
+therefore always `"degraded"`, which made the weight-reallocation logic (§4)
+discount competition even when the underlying data was perfectly good.
+
+**It no longer hard-depends on the isochrone.** This tool used to require the
+drive-time catchment polygon, so a routing failure cost *two* of the five
+signals instead of one. That's not hypothetical — it's exactly what surfaced in
+use: one isochrone blip produced "Access score could not be determined" **and**
+"Competition metrics unavailable" on every candidate at once. When no catchment
+is available it now falls back to a 3-mile radius (a reasonable stand-in for a
+10-minute urban drive) and records which basis it used in `catchment_basis`, so
+a number measured the cruder way never silently passes as the precise one.
 
 ---
 
@@ -326,13 +335,12 @@ The Synthesis Agent is explicitly told to score against each candidate's
 `data_gaps` entry for anything missing — so the user sees both the honest
 gap *and* a ranking that isn't artificially penalized by it.
 
-**A known simplification:** because `get_poi_density` almost always returns
-`status: "degraded"` (missing `saturation_score`, see §2.3) rather than `"ok"`,
-the competition dimension gets reallocated away more often than is strictly
-fair — the count and nearest-competitor data it *does* have is still passed
-to the model and used in the rationale, just not counted as "fully available"
-for reallocation purposes. Tightening this to a partial-credit model instead
-of a binary ok/not-ok cutoff is a reasonable next improvement.
+**Partial credit is still binary.** Reallocation keys off a strict
+ok/not-ok cutoff, so a `"degraded"` result — say a competitor count with no
+saturation rate — has its whole weight reallocated even though some of its data
+is usable and is still shown to the model. This bites far less than it used to
+now that `get_poi_density` reaches `"ok"` in the normal case (§2.3), but a
+partial-credit model would be more faithful than the current cliff edge.
 
 ---
 
@@ -347,15 +355,27 @@ by the tools — never calls a tool itself, never sees a raw API response.
 **The hard rule, enforced in code, not just prompted:** after synthesis
 produces a `RankedReport`, `citation_validator.py` extracts every number
 (`\$?\d[\d,]*\.?\d*%?`) from each candidate's rationale and checks it against
-every numeric value present in that candidate's source JSON (with a small
-rounding tolerance). Any unsupported number triggers a retry — the model is
-shown exactly which numbers didn't check out and told to rewrite using only
-verified figures. This happens up to 3 times.
+the numeric values in the upstream JSON (with a small rounding tolerance). Any
+unsupported number triggers a retry — the model is shown exactly which numbers
+didn't check out and told to rewrite using only verified figures. This happens
+up to 3 times.
+
+**Scope: the union of all candidates, not one.** An earlier version checked each
+rationale against only *that* candidate's JSON. That looks stricter but was
+simply wrong: the model is handed every candidate's data, and a genuinely good
+rationale compares across them ("density of 5501.8 versus Westlake's 816.5") —
+which the build spec explicitly asks for in the tradeoff. Scoping the check to
+one candidate marked those comparative figures as fabricated, burned all three
+retries, and withheld the rationale. In other words, the check was
+systematically suppressing the *best-written* answers while the fabrication
+guarantee it existed to protect was never actually at risk. It now validates
+against the union of all candidates' data, which preserves the real guarantee —
+every number must come from live upstream data, never invented — without
+punishing comparison.
 
 **If it still fails after 3 tries**, the rationale is replaced with an explicit
 "manual review required" message and a `data_gaps` entry — the system ships an
-honest non-answer rather than an unverified one. This path has actually fired
-in testing (not just as a designed contingency) — see the README.
+honest non-answer rather than an unverified one.
 
 **A second, independent safeguard:** the Synthesis Agent is explicitly told
 never to rank more candidates than it was actually given, after testing with
@@ -410,8 +430,10 @@ Collected in one place, rather than scattered as caveats:
   reachable-area ratio, not a true population-weighted score — that needs a
   gridded population raster (e.g. GHS-POP) overlaid on the isochrone polygon,
   which isn't wired in.
-- **`saturation_score` (§2.3) is never computed.** Needs a population estimate
-  for the catchment that `get_poi_density` doesn't currently receive.
+- **`saturation_score` is an estimate, not a census count.** It multiplies
+  tract-level population density by the search area, which assumes density is
+  uniform across the catchment. Real catchments straddle tracts of differing
+  density, so treat the rate as indicative rather than exact.
 - **Zoning coverage is manual, per-city, and currently just Austin.** See §2.5
   and the multi-city section of the README.
 - **Hard constraints are judged, not verified.** None of the 5 tools return
