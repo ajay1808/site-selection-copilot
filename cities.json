@@ -14,5 +14,13 @@
     "osm_extract": "dallas",
     "zoning_coverage": false,
     "onboarded_at": "2026-08-12"
+  },
+  "Seattle": {
+    "display_name": "Seattle, King County, Washington, United States",
+    "ors_port": 8082,
+    "ors_container": "site-selection-ors-seattle",
+    "osm_extract": "seattle",
+    "zoning_coverage": false,
+    "onboarded_at": "2026-08-18"
   }
 }

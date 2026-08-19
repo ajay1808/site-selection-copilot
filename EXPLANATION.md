@@ -453,6 +453,15 @@ Collected in one place, rather than scattered as caveats:
   (§6) measures "does today's data support the historical decision," not "what
   would the system have said before the decision was made" — a real, stated
   limitation of the eval, not hidden.
+- **Onboarding a large city needs real memory.** Building a routing graph
+  takes roughly 7x the extract size in JVM heap. A city-sized extract (~70MB)
+  builds fine in the 2GB default; a whole-state fallback extract (Texas, 715MB)
+  needs ~5GB and silently died with `java.lang.OutOfMemoryError` before the heap
+  was sized from the extract. `onboard_city.py` now computes the heap, compares
+  it against Docker's allocation, warns before starting if it won't fit, and
+  detects an OOM in the container logs rather than waiting out the full timeout.
+  Cities that fall back to a regional extract may still exceed a default Docker
+  memory allocation — the public ORS API avoids the problem entirely.
 - **Onboarding a new city only automates 4 of 5 tools.** `onboard_city.py`
   gets routing (via BBBike's ~240-city catalog, or a larger Geofabrik regional
   extract as a fallback) working automatically; census, labor, and competitor

@@ -12,6 +12,7 @@ managed hosting), and doesn't try to persist anything between runs.
 
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -248,20 +249,42 @@ def render_report(report):
 
 def onboard_city_ui(city_name: str):
     st.session_state.onboard_log = ""
-    with st.status(f"Onboarding '{city_name}'...", expanded=True) as status:
+    project_dir = os.path.dirname(os.path.abspath(__file__))
+
+    with st.status(f"Onboarding '{city_name}'…", expanded=True) as status:
         proc = subprocess.Popen(
             [sys.executable, "onboard_city.py", city_name, "--yes"],
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1,
+            cwd=project_dir,  # Streamlit's cwd isn't guaranteed to be the project root
         )
         log_box = st.empty()
+        lines = []
         for line in proc.stdout:
-            st.session_state.onboard_log += line
+            # The downloader emits a progress line per megabyte; keeping only
+            # the most recent one stops the panel filling with hundreds of them.
+            if re.match(r"^\s*[\d.]+ / [\d.]+ MB", line):
+                if lines and re.match(r"^\s*[\d.]+ / [\d.]+ MB", lines[-1]):
+                    lines[-1] = line.rstrip()
+                else:
+                    lines.append(line.rstrip())
+            elif line.strip():
+                lines.append(line.rstrip())
+            st.session_state.onboard_log = "\n".join(lines)
             log_box.code(st.session_state.onboard_log)
         proc.wait()
+
         if proc.returncode == 0:
-            status.update(label=f"'{city_name}' onboarded", state="complete")
+            status.update(label=f"'{city_name}' is ready to use", state="complete")
         else:
-            status.update(label=f"Onboarding '{city_name}' failed", state="error")
+            status.update(label=f"Couldn't onboard '{city_name}'", state="error")
+            # Pull the explanation out of the log so it isn't buried in output.
+            detail = [
+                l for l in lines
+                if l.strip() and not l.strip().startswith(("Onboarding", "http"))
+                and not re.match(r"^\s*[\d.]+ / [\d.]+ MB", l)
+            ]
+            if detail:
+                st.error("\n\n".join(detail[-6:]))
 
 
 @st.dialog("🔑 Connect your API keys")

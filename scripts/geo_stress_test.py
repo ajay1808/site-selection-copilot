@@ -49,10 +49,9 @@ for label, candidate, county_fips in LOCATIONS:
     row["poi_count"] = poi.same_category_count_in_catchment
     row["poi_nearest3"] = poi.nearest_three_distances_miles
 
-    if county_fips:
-        labor = get_labor_profile(candidate, county_fips=county_fips, occupation_code="35-3023")
-    else:
-        labor = get_labor_profile(candidate, county_fips="00000", occupation_code="35-3023")
+    # county/CBSA are derived from the candidate's coordinates now, so the
+    # caller no longer passes county_fips -- this call used to raise TypeError.
+    labor = get_labor_profile(candidate, business_type="coffee shop", occupation_code="35-3023")
     print(f"labor: status={labor.status} wage_p50={labor.wage_p50} unemployment={labor.unemployment_rate_pct}")
     row["labor_status"] = labor.status
     row["labor_wage_p50"] = labor.wage_p50
